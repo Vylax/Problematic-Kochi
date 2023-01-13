@@ -4,10 +4,12 @@ using UnityEngine;
 
 public class StorageItemsData : MonoBehaviour
 {
+    public enum ItemType { Default };
+
     public static Dictionary<int,ItemsData> itemsData = new Dictionary<int, ItemsData>
     {
-        { 0, new ItemsData(0, "test", "", -1, 2, 1) },
-        { 1, new ItemsData(1, "test2", "", -1, 1, 1) }
+        { 0, new ItemsData(0, "test", "", ItemType.Default, 2, 1) },
+        { 1, new ItemsData(1, "test2", "", ItemType.Default, 1, 1) }
     };
 
     public class ItemsData
@@ -15,12 +17,12 @@ public class StorageItemsData : MonoBehaviour
         public int id;
         public string name;
         public string description;
-        public int type;
+        public ItemType type;
         public int width;
         public int height;
         public Texture2D icon;
 
-        public ItemsData(int id, string name, string description, int type, int width, int height, Texture2D icon = null)
+        public ItemsData(int id, string name, string description, ItemType type, int width, int height, Texture2D icon = null)
         {
             this.id = id;
             this.name = name;

@@ -4,14 +4,17 @@ using UnityEngine;
 using static Utils;
 using static StorageSystem;
 using static StorageItemsData;
+using System;
 
 public class StorageSystem : MonoBehaviour
 {
+    [Serializable]
     public class Storage
     {
         public int width;
         public int height;
         public Slot[,] slots;
+        public List<Action> history;
 
         private int currLocalId = -1;
         private int NewLocalId
@@ -41,6 +44,7 @@ public class StorageSystem : MonoBehaviour
                     slots[i, j] = new Slot(i, j, this, lockedSlots != null ? lockedSlots[i, j] : false);
                 }
             }
+            history = new List<Action>();
         }
 
         /// <summary>
@@ -103,7 +107,7 @@ public class StorageSystem : MonoBehaviour
         /// <param name="y">The y position where the top left slot of the item should be placed</param>
         /// <param name="item">The item to place</param>
         /// <returns>True if the item was successfully placed</returns>
-        public bool PlaceItem(int x, int y, Item item)
+        public bool PlaceItem(int x, int y, Item item, bool indirectAction=false)
         {
             int itemWidth = item.Width;
             int itemHeight = item.Height;
@@ -122,6 +126,14 @@ public class StorageSystem : MonoBehaviour
                 }
             }
             item.Place(area);
+
+            if(!indirectAction)
+            {
+                // TODO: make sure that reverting actions doesn't cause incoherent states with regards to this localId of an item
+                item.localId = NewLocalId; //If this is a direct action, then the item is placed for the first time in the inventory, so we assign it a localId
+                history.Add(new Action(Action.ActionType.Add, item, x, y)); //If PlaceItem wasn't called through another action (e.g: MoveItem()) then register the action
+            }
+
             return true;
         }
 
@@ -131,7 +143,7 @@ public class StorageSystem : MonoBehaviour
         /// <param name="x">x coordinate of a slot containing the item to remove</param>
         /// <param name="y">y coordinate of a slot containing the item to remove</param>
         /// <returns>True if the item was successfully removed from the storage</returns>
-        public bool RemoveItem(int x, int y)
+        public bool RemoveItem(int x, int y, bool indirectAction = false)
         {
             Item item = slots[x, y].item;
 
@@ -157,6 +169,9 @@ public class StorageSystem : MonoBehaviour
                 }
             }
             item.Remove();
+
+            if (!indirectAction) history.Add(new Action(Action.ActionType.Remove, item, x, y)); //If RemoveItem wasn't called through another action (e.g: MoveItem()) then register the action
+
             return true;
         }
 
@@ -169,23 +184,27 @@ public class StorageSystem : MonoBehaviour
         /// <param name="newY">The desired y top left slot position for the item in the destination storage</param>
         /// <param name="storage">The destination storage for the item, default is the item's original storage</param>
         /// <returns>True if the item was moved successfully</returns>
-        public bool MoveItem(int x, int y, int newX, int newY, Storage storage=this)
+        public bool MoveItem(int x, int y, int newX, int newY, Storage destStorage = null)
         {
             Item item = slots[x, y].item;
-            
-            if(!RemoveItem(x, y))
+
+            if (!RemoveItem(x, y, true))
             {
                 return false;
             }
 
-            if (!storage.PlaceItem(newX, newY, item))
+            destStorage ??= this;
+            if (!destStorage.PlaceItem(newX, newY, item, true))
             {
-                PlaceItem(x, y, item);
+                PlaceItem(x, y, item, true);
                 return false;
             }
+
+            history.Add(new Action(Action.ActionType.Move, item, x, y, newX, newY, destStorage));
             return true;
         }
 
+        //TODO: get rid of this method, it will cause trouble when setting up networking of actions (or rewrite it accordingly)
         /// <summary>
         /// Switch items position in the current storage
         /// </summary>
@@ -204,35 +223,88 @@ public class StorageSystem : MonoBehaviour
             int x2 = item2.parents[0,0].x;
             int y2 = item2.parents[0,0].y;
 
-            if (!RemoveItem(x1, y1)) //we try to remove item1 from its slots
+            if (!RemoveItem(x1, y1, true)) //we try to remove item1 from its slots
             {
                 return false;
             }
-            if (!RemoveItem(x2, y2)) //we try to remove item2 from its slots knowing that item1 was successfully removed from its slots..
+            if (!RemoveItem(x2, y2, true)) //we try to remove item2 from its slots knowing that item1 was successfully removed from its slots..
             {
-                PlaceItem(x1, y1, item1); //..if it fails, we put item1 back to its place and return
-                return false;
-            }
-
-            if(!PlaceItem(x2, y2, item1)) //we try to place item1 into item2 slots knowing that both items were successfully removed from their slots..
-            {
-                PlaceItem(x1, y1, item1); //..if it fails we put both items back to their respectives places
-                PlaceItem(x2, y2, item2);
+                PlaceItem(x1, y1, item1, true); //..if it fails, we put item1 back to its place and return
                 return false;
             }
 
-            if (!PlaceItem(x1, y1, item2)) //we try to place item2 into item1 slots knowing that item1 was successfully put into item2 slots
+            if(!PlaceItem(x2, y2, item1, true)) //we try to place item1 into item2 slots knowing that both items were successfully removed from their slots..
             {
-                RemoveItem(x2, y2); //if it fails we remove item1 from item2 slots and we put both items back to their respectives places..
-                PlaceItem(x1, y1, item1);
-                PlaceItem(x2, y2, item2);
+                PlaceItem(x1, y1, item1, true); //..if it fails we put both items back to their respectives places
+                PlaceItem(x2, y2, item2, true);
+                return false;
+            }
+
+            if (!PlaceItem(x1, y1, item2, true)) //we try to place item2 into item1 slots knowing that item1 was successfully put into item2 slots
+            {
+                RemoveItem(x2, y2, true); //if it fails we remove item1 from item2 slots and we put both items back to their respectives places..
+                PlaceItem(x1, y1, item1, true);
+                PlaceItem(x2, y2, item2, true);
                 return false;
             }
 
             return true; //..otherwise we successfully switched item1 and item2
         }
+
+        /// <summary>
+        /// Attempts to revert the Storage back to its state before the Action passed as parameter was performed
+        /// </summary>
+        /// <param name="target">The latest action to revert, default value set to last action</param>
+        /// <returns>True if Actions were successfully undone, False if things went very wrong and we are screwed</returns>
+        public bool Undo(Action target = null)
+        {
+            if (history.Count == 0)
+            {
+                return false;
+            }
+
+            int targetIndex = target != null ? history.IndexOf(target) : history.Count - 1;
+            if (targetIndex == -1)
+            {
+                return false;
+            }
+
+            for (int i = history.Count - 1; i >= targetIndex; i--)
+            {
+                Action action = history[i];
+                history.RemoveAt(i);
+
+                switch (action.type)
+                {
+                    case Action.ActionType.Move:
+                        if (!action.destStorage.MoveItem(action.newX, action.newY, action.x, action.y, this))
+                        {
+                            return false;
+                        }
+                        break;
+                    case Action.ActionType.Remove:
+                        if (!PlaceItem(action.x, action.y, action.item))
+                        {
+                            return false;
+                        }
+                        break;
+                    case Action.ActionType.Add:
+                        if (!RemoveItem(action.x, action.y))
+                        {
+                            return false;
+                        }
+                        break;
+                    default:
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
     }
 
+    [Serializable]
     public class Slot
     {
         public int x;
@@ -268,9 +340,11 @@ public class StorageSystem : MonoBehaviour
         }
     }
 
+    [Serializable]
     public class Item
     {
         public int id;
+        public int localId;
         public int amount;
         public bool rotated;
         public Slot[,] parents;
@@ -303,33 +377,25 @@ public class StorageSystem : MonoBehaviour
         }
     }
 
+    [Serializable]
     public class Action
     {
-        public int id;
-        public Storage oldStorage;
-        public Storage destStorage;
+        public enum ActionType { Move, Remove, Add }
+        public ActionType type;
         public Item item;
-        private int code = -1;
+        public int x, y, newX, newY;
+        public Storage destStorage;
 
-        public Action(int id, Storage oldStorage, Storage destStorage, Item item)
+        public Action(ActionType type, Item item, int x, int y, int newX = -1, int newY = -1, Storage destStorage = null)
         {
-            this.id = id;
-            this.oldStorage = oldStorage;
+            this.type = type;
+            this.item = item;
+            this.x = x;
+            this.y = y;
+            this.newX = newX;
+            this.newY = newY;
             this.destStorage = destStorage;
         }
-
-
-        public int ActionCode
-        {
-            get
-            {
-                if (code == -1)
-                {
-                    //compute code
-
-                }
-                return code;
-            }
-        }
     }
+
 }

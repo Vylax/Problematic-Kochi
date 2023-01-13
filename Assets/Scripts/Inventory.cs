@@ -7,7 +7,7 @@ using UnityEngine.Rendering;
 
 public class Inventory : MonoBehaviour
 {
-    private Storage inventory;
+    public Storage inventory;
 
     public int cellSize = 40;
     public int cellSpacing = 5;
@@ -17,6 +17,9 @@ public class Inventory : MonoBehaviour
     private int currId = 0;
     private bool currRot = false;
     private bool currMode = false;
+
+    //DEBUG
+    public int actionId;
 
     private void Start()
     {
@@ -41,7 +44,7 @@ public class Inventory : MonoBehaviour
         Vector2Int pos = MousePosInInventory;
         int i = pos.x;
         int j = pos.y;
-        if ((Input.GetButtonDown("Fire1") || Input.GetButtonDown("Fire2")) && !inventory.slots[i, j].locked)
+        if ((Input.GetButtonDown("Fire1") || Input.GetButtonDown("Fire2")) && !inventory.SlotInBounds(i,j))
         {
             if (Input.GetButtonDown("Fire1"))
             {
@@ -61,7 +64,7 @@ public class Inventory : MonoBehaviour
         {
             for (int j = 0; j < inventory.height; j++)
             {
-                GUI.Box(new Rect(inventoryTopLeftOffset.x + i * (cellSize + cellSpacing), inventoryTopLeftOffset.y + j * (cellSize + cellSpacing), cellSize, cellSize), inventory.slots[i, j].full ? $"{inventory.slots[i, j].item.id}" : "");
+                GUI.Box(new Rect(inventoryTopLeftOffset.x + i * (cellSize + cellSpacing), inventoryTopLeftOffset.y + j * (cellSize + cellSpacing), cellSize, cellSize), inventory.slots[i, j].full ? $"{inventory.slots[i, j].item.localId}" : "");
             }
         }
 
@@ -71,6 +74,10 @@ public class Inventory : MonoBehaviour
         GUILayout.Box($"fire1: {Input.GetButton("Fire1")}");
         GUILayout.Box($"fire2: {Input.GetButton("Fire2")}");
         GUILayout.Box($"MousePosInInventory: {MousePosInInventory}");
+        if(GUILayout.Button($"Revert to action with id: {actionId}"))
+        {
+            inventory.Undo(inventory.history[actionId]);
+        }
     }
 
     private Vector2 MousePos

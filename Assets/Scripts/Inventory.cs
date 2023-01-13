@@ -44,7 +44,7 @@ public class Inventory : MonoBehaviour
         Vector2Int pos = MousePosInInventory;
         int i = pos.x;
         int j = pos.y;
-        if ((Input.GetButtonDown("Fire1") || Input.GetButtonDown("Fire2")) && !inventory.SlotInBounds(i,j))
+        if ((Input.GetButtonDown("Fire1") || Input.GetButtonDown("Fire2")) && inventory.SlotInBounds(i,j))
         {
             if (Input.GetButtonDown("Fire1"))
             {

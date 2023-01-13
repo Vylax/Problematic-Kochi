@@ -107,7 +107,7 @@ public class StorageSystem : MonoBehaviour
         /// <param name="y">The y position where the top left slot of the item should be placed</param>
         /// <param name="item">The item to place</param>
         /// <returns>True if the item was successfully placed</returns>
-        public bool PlaceItem(int x, int y, Item item, bool indirectAction=false)
+        public bool PlaceItem(int x, int y, Item item, bool saveAction = true)
         {
             int itemWidth = item.Width;
             int itemHeight = item.Height;
@@ -127,11 +127,11 @@ public class StorageSystem : MonoBehaviour
             }
             item.Place(area);
 
-            if(!indirectAction)
+            if(saveAction)
             {
                 // TODO: make sure that reverting actions doesn't cause incoherent states with regards to this localId of an item
                 item.localId = NewLocalId; //If this is a direct action, then the item is placed for the first time in the inventory, so we assign it a localId
-                history.Add(new Action(Action.ActionType.Add, item, x, y)); //If PlaceItem wasn't called through another action (e.g: MoveItem()) then register the action
+                history.Add(new Action(Action.ActionType.Add, item, x, y));
             }
 
             return true;
@@ -143,7 +143,7 @@ public class StorageSystem : MonoBehaviour
         /// <param name="x">x coordinate of a slot containing the item to remove</param>
         /// <param name="y">y coordinate of a slot containing the item to remove</param>
         /// <returns>True if the item was successfully removed from the storage</returns>
-        public bool RemoveItem(int x, int y, bool indirectAction = false)
+        public bool RemoveItem(int x, int y, bool saveAction = true)
         {
             Item item = slots[x, y].item;
 
@@ -170,7 +170,7 @@ public class StorageSystem : MonoBehaviour
             }
             item.Remove();
 
-            if (!indirectAction) history.Add(new Action(Action.ActionType.Remove, item, x, y)); //If RemoveItem wasn't called through another action (e.g: MoveItem()) then register the action
+            if (saveAction) history.Add(new Action(Action.ActionType.Remove, item, x, y));
 
             return true;
         }
@@ -184,23 +184,23 @@ public class StorageSystem : MonoBehaviour
         /// <param name="newY">The desired y top left slot position for the item in the destination storage</param>
         /// <param name="storage">The destination storage for the item, default is the item's original storage</param>
         /// <returns>True if the item was moved successfully</returns>
-        public bool MoveItem(int x, int y, int newX, int newY, Storage destStorage = null)
+        public bool MoveItem(int x, int y, int newX, int newY, bool saveAction = true, Storage destStorage = null)
         {
             Item item = slots[x, y].item;
 
-            if (!RemoveItem(x, y, true))
+            if (!RemoveItem(x, y, false))
             {
                 return false;
             }
 
             destStorage ??= this;
-            if (!destStorage.PlaceItem(newX, newY, item, true))
+            if (!destStorage.PlaceItem(newX, newY, item, false))
             {
-                PlaceItem(x, y, item, true);
+                PlaceItem(x, y, item, false);
                 return false;
             }
 
-            history.Add(new Action(Action.ActionType.Move, item, x, y, newX, newY, destStorage));
+            if (saveAction) history.Add(new Action(Action.ActionType.Move, item, x, y, newX, newY, destStorage));
             return true;
         }
 
@@ -223,28 +223,28 @@ public class StorageSystem : MonoBehaviour
             int x2 = item2.parents[0,0].x;
             int y2 = item2.parents[0,0].y;
 
-            if (!RemoveItem(x1, y1, true)) //we try to remove item1 from its slots
+            if (!RemoveItem(x1, y1, false)) //we try to remove item1 from its slots
             {
                 return false;
             }
-            if (!RemoveItem(x2, y2, true)) //we try to remove item2 from its slots knowing that item1 was successfully removed from its slots..
+            if (!RemoveItem(x2, y2, false)) //we try to remove item2 from its slots knowing that item1 was successfully removed from its slots..
             {
-                PlaceItem(x1, y1, item1, true); //..if it fails, we put item1 back to its place and return
-                return false;
-            }
-
-            if(!PlaceItem(x2, y2, item1, true)) //we try to place item1 into item2 slots knowing that both items were successfully removed from their slots..
-            {
-                PlaceItem(x1, y1, item1, true); //..if it fails we put both items back to their respectives places
-                PlaceItem(x2, y2, item2, true);
+                PlaceItem(x1, y1, item1, false); //..if it fails, we put item1 back to its place and return
                 return false;
             }
 
-            if (!PlaceItem(x1, y1, item2, true)) //we try to place item2 into item1 slots knowing that item1 was successfully put into item2 slots
+            if(!PlaceItem(x2, y2, item1, false)) //we try to place item1 into item2 slots knowing that both items were successfully removed from their slots..
             {
-                RemoveItem(x2, y2, true); //if it fails we remove item1 from item2 slots and we put both items back to their respectives places..
-                PlaceItem(x1, y1, item1, true);
-                PlaceItem(x2, y2, item2, true);
+                PlaceItem(x1, y1, item1, false); //..if it fails we put both items back to their respectives places
+                PlaceItem(x2, y2, item2, false);
+                return false;
+            }
+
+            if (!PlaceItem(x1, y1, item2, false)) //we try to place item2 into item1 slots knowing that item1 was successfully put into item2 slots
+            {
+                RemoveItem(x2, y2, false); //if it fails we remove item1 from item2 slots and we put both items back to their respectives places..
+                PlaceItem(x1, y1, item1, false);
+                PlaceItem(x2, y2, item2, false);
                 return false;
             }
 
@@ -277,19 +277,19 @@ public class StorageSystem : MonoBehaviour
                 switch (action.type)
                 {
                     case Action.ActionType.Move:
-                        if (!action.destStorage.MoveItem(action.newX, action.newY, action.x, action.y, this))
+                        if (!action.destStorage.MoveItem(action.newX, action.newY, action.x, action.y, false, this))
                         {
                             return false;
                         }
                         break;
                     case Action.ActionType.Remove:
-                        if (!PlaceItem(action.x, action.y, action.item))
+                        if (!PlaceItem(action.x, action.y, action.item, false))
                         {
                             return false;
                         }
                         break;
                     case Action.ActionType.Add:
-                        if (!RemoveItem(action.x, action.y))
+                        if (!RemoveItem(action.x, action.y, false))
                         {
                             return false;
                         }

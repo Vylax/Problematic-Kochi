@@ -82,19 +82,13 @@ public class StorageSystem : MonoBehaviour
         /// <param name="area">The slots area matrix</param>
         public bool AreaFree(Slot[,] area)
         {
-            if(area.GetLength(0) < 1 || area.GetLength(1) < 1)
-            {
-                return false;
-            }
+            if(area.GetLength(0) < 1 || area.GetLength(1) < 1) return false;
 
             for (int i = 0; i < area.GetLength(0); i++)
             {
                 for (int j = 0; j < area.GetLength(1); j++)
                 {
-                    if (area[i,j] == null || !area[i, j].IsFree)
-                    {
-                        return false;
-                    }
+                    if (area[i,j] == null || !area[i, j].IsFree) return false;
                 }
             }
             return true;
@@ -113,10 +107,7 @@ public class StorageSystem : MonoBehaviour
             int itemHeight = item.Height;
             Slot[,] area = AreaSlots(x,y,itemWidth,itemHeight);
 
-            if (!AreaFree(area))
-            {
-                return false;
-            }
+            if (!AreaFree(area)) return false;
 
             for (int i = 0; i < itemWidth; i++)
             {
@@ -129,7 +120,7 @@ public class StorageSystem : MonoBehaviour
 
             if(saveAction)
             {
-                // TODO: make sure that reverting actions doesn't cause incoherent states with regards to this localId of an item
+                //TODO: make sure that reverting actions doesn't cause incoherent states with regards to this localId of an item
                 item.localId = NewLocalId; //If this is a direct action, then the item is placed for the first time in the inventory, so we assign it a localId
                 history.Add(new Action(Action.ActionType.Add, item, x, y));
             }
@@ -147,19 +138,13 @@ public class StorageSystem : MonoBehaviour
         {
             Item item = slots[x, y].item;
 
-            if(item == null)
-            {
-                return false;
-            }
+            if(item == null) return false;
 
             int itemWidth = item.Width;
             int itemHeight = item.Height;
             Slot[,] area = item.parents;
 
-            if (AreaFree(area))
-            {
-                return false;
-            }
+            if (AreaFree(area)) return false;
 
             for (int i = 0; i < itemWidth; i++)
             {
@@ -193,10 +178,7 @@ public class StorageSystem : MonoBehaviour
             
             Vector2Int topLeft = item.topLeft; //store the topLeft slot position before removing the item
 
-            if (!RemoveItem(x, y, false))
-            {
-                return false;
-            }
+            if (!RemoveItem(x, y, false)) return false;
 
             destStorage ??= this;
             if (!destStorage.PlaceItem(newX, newY, item, false))
@@ -206,6 +188,7 @@ public class StorageSystem : MonoBehaviour
             }
 
             if (saveAction) history.Add(new Action(Action.ActionType.Move, item, topLeft.x, topLeft.y, newX, newY, destStorage));
+
             return true;
         }
 
@@ -263,16 +246,10 @@ public class StorageSystem : MonoBehaviour
         /// <returns>True if Actions were successfully undone, False if things went very wrong and we are screwed</returns>
         public bool Undo(Action target = null)
         {
-            if (history.Count == 0)
-            {
-                return false;
-            }
+            if (history.Count == 0) return false;
 
             int targetIndex = target != null ? history.IndexOf(target) : history.Count - 1;
-            if (targetIndex == -1)
-            {
-                return false;
-            }
+            if (targetIndex == -1) return false;
 
             for (int i = history.Count - 1; i >= targetIndex; i--)
             {

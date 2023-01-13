@@ -144,7 +144,9 @@ public class StorageSystem : MonoBehaviour
             int itemHeight = item.Height;
             Slot[,] area = item.parents;
 
-            if (AreaFree(area)) return false;
+            if (AreaFree(area)) return false; //TODO: does this check make any sense ??
+
+            Vector2Int topLeft = item.topLeft; //store the topLeft slot position before removing the item
 
             for (int i = 0; i < itemWidth; i++)
             {
@@ -155,7 +157,7 @@ public class StorageSystem : MonoBehaviour
             }
             item.Remove();
 
-            if (saveAction) history.Add(new Action(Action.ActionType.Remove, item, item.topLeft.x, item.topLeft.y));
+            if (saveAction) history.Add(new Action(Action.ActionType.Remove, item, topLeft.x, topLeft.y));
 
             return true;
         }

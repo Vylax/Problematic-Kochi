@@ -20,6 +20,8 @@ public class Inventory : MonoBehaviour
 
     //DEBUG
     public int actionId;
+    public Vector2Int moveFrom;
+    public Vector2Int moveTo;
 
     private void Start()
     {
@@ -76,7 +78,11 @@ public class Inventory : MonoBehaviour
         GUILayout.Box($"MousePosInInventory: {MousePosInInventory}");
         if(GUILayout.Button($"Revert to action with id: {actionId}"))
         {
-            inventory.Undo(inventory.history[actionId]);
+            print(inventory.Undo(inventory.history[actionId]));
+        }
+        if (GUILayout.Button($"Move item from {moveFrom} to {moveTo}"))
+        {
+            print(inventory.MoveItem(moveFrom.x, moveFrom.y, moveTo.x, moveTo.y));
         }
     }
 

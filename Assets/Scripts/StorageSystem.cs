@@ -170,7 +170,7 @@ public class StorageSystem : MonoBehaviour
             }
             item.Remove();
 
-            if (saveAction) history.Add(new Action(Action.ActionType.Remove, item, x, y));
+            if (saveAction) history.Add(new Action(Action.ActionType.Remove, item, item.topLeft.x, item.topLeft.y));
 
             return true;
         }
@@ -186,7 +186,12 @@ public class StorageSystem : MonoBehaviour
         /// <returns>True if the item was moved successfully</returns>
         public bool MoveItem(int x, int y, int newX, int newY, bool saveAction = true, Storage destStorage = null)
         {
+            Debug.Log($"Moving item from Storage {this.GetHashCode()} to Storage {(destStorage != null ? destStorage : this).GetHashCode()}, from position ({x},{y}) to ({newX},{newY}) while {(saveAction ? "" : "not")} saving action");
             Item item = slots[x, y].item;
+
+            if (item.topLeft.x == newX && item.topLeft.y == newY) return false; //We're not performing identity actions
+            
+            Vector2Int topLeft = item.topLeft; //store the topLeft slot position before removing the item
 
             if (!RemoveItem(x, y, false))
             {
@@ -200,7 +205,7 @@ public class StorageSystem : MonoBehaviour
                 return false;
             }
 
-            if (saveAction) history.Add(new Action(Action.ActionType.Move, item, x, y, newX, newY, destStorage));
+            if (saveAction) history.Add(new Action(Action.ActionType.Move, item, topLeft.x, topLeft.y, newX, newY, destStorage));
             return true;
         }
 
@@ -348,6 +353,7 @@ public class StorageSystem : MonoBehaviour
         public int amount;
         public bool rotated;
         public Slot[,] parents;
+        public Vector2Int topLeft; //the x and y slot position of the top left slot containing the item if there is one, otherwise (-1, -1)
 
         public Item(int id, int amount, bool rotated = false, Slot[,] parents = null)
         {
@@ -355,6 +361,7 @@ public class StorageSystem : MonoBehaviour
             this.amount = amount;
             this.rotated = rotated;
             this.parents = parents;
+            topLeft = new Vector2Int(-1, -1);
         }
 
         /// <summary>
@@ -369,11 +376,13 @@ public class StorageSystem : MonoBehaviour
         public void Place(Slot[,] area)
         {
             parents = area;
+            topLeft = new Vector2Int(area[0, 0].x, area[0, 0].y);
         }
 
         public void Remove()
         {
             parents = null;
+            topLeft = new Vector2Int(-1, -1);
         }
     }
 

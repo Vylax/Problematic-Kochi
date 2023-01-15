@@ -40,14 +40,12 @@ namespace Riptide.Demos.PlayerHosted
         internal Server Server { get; private set; }
         internal Client Client { get; private set; }
 
-        public static bool isRemoteServer = false;
-
         private void Awake()
         {
             Singleton = this;
 
 #if UNITY_STANDALONE_LINUX
-            Debug.Log("Standalone Linux Detected");
+            Debug.Log("Distant server detected");
             
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = 30;
@@ -60,8 +58,13 @@ namespace Riptide.Demos.PlayerHosted
 
             Server = new Server();
             Server.ClientConnected += PlayerJoined;
-            Server.ClientDisconnected += PlayerLeft;
             Server.RelayFilter = new MessageRelayFilter(typeof(MessageId), MessageId.SpawnPlayer, MessageId.PlayerMovement);
+
+            Client = new Client();
+            Client.Connected += DidConnect;
+            Client.ConnectionFailed += FailedToConnect;
+            Client.ClientDisconnected += PlayerLeft;
+            Client.Disconnected += DidDisconnect;
 
             string[] args = Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length; i++)
@@ -69,19 +72,11 @@ namespace Riptide.Demos.PlayerHosted
                 Debug.LogError($"i={i}, arg={args[i]}");
                 if (args[i] == "-launch-as-server")
                 {
-                    Debug.LogError("Launched as server");
-                    isRemoteServer = true;
+                    Debug.Log("Launched as server");
+                    //isRemoteServer = true;
                     UIManager.Singleton.HostClicked();
                 }
             }
-
-            if (isRemoteServer)
-                return;
-
-            Client = new Client();
-            Client.Connected += DidConnect;
-            Client.ConnectionFailed += FailedToConnect;
-            Client.Disconnected += DidDisconnect;
         }
 
         private void FixedUpdate()
@@ -89,20 +84,19 @@ namespace Riptide.Demos.PlayerHosted
             if (Server.IsRunning)
                 Server.Update();
             
-            if(!isRemoteServer)
-                Client.Update();
+            Client.Update();
         }
 
         private void OnApplicationQuit()
         {
             Server.Stop();
-            if (!isRemoteServer)
-                Client.Disconnect();
+            Client.Disconnect();
         }
 
         internal void StartHost()
         {
             Server.Start(port, maxPlayers);
+            Client.Connect($"127.0.0.1:{port}");
         }
 
         internal void JoinGame(string ipString)
@@ -113,8 +107,7 @@ namespace Riptide.Demos.PlayerHosted
         internal void LeaveGame()
         {
             Server.Stop();
-            if (!isRemoteServer)
-                Client.Disconnect();
+            Client.Disconnect();
         }
 
         private void DidConnect(object sender, EventArgs e)
@@ -134,9 +127,9 @@ namespace Riptide.Demos.PlayerHosted
                     player.SendSpawn(e.Client.Id);
         }
 
-        private void PlayerLeft(object sender, ServerDisconnectedEventArgs e)
+        private void PlayerLeft(object sender, ClientDisconnectedEventArgs e)
         {
-            Destroy(Player.List[e.Client.Id].gameObject);
+            Destroy(Player.List[e.Id].gameObject);
         }
 
         private void DidDisconnect(object sender, DisconnectedEventArgs e)

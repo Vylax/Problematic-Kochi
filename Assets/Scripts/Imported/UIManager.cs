@@ -35,7 +35,6 @@ namespace Riptide.Demos.PlayerHosted
 
         public void HostClicked()
         {
-            //TODO: Don't allow clients to host !!!
             mainMenu.SetActive(false);
             gameMenu.SetActive(true);
 

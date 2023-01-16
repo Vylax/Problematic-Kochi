@@ -40,6 +40,11 @@ namespace Riptide.Demos.PlayerHosted
         }
 
         #region Messages
+
+        /// <summary>
+        /// Called when the local Client established a connection to the server and was Spawned
+        /// <br/> It tells the server that the Player was spawned
+        /// </summary>
         private void SendSpawn()
         {
             Message message = Message.Create(MessageSendMode.Reliable, MessageId.SpawnPlayer);
@@ -55,6 +60,11 @@ namespace Riptide.Demos.PlayerHosted
             Spawn(message.GetUShort(), message.GetString(), message.GetVector3());
         }
 
+        /// <summary>
+        /// Method called when the Server sends the spawn message associated to the current player instance to the client who just connected
+        /// <br/> It informs the newly connected client about the existence of all the players already connected
+        /// </summary>
+        /// <param name="newPlayerId">the Id of the Client who will receive the message (the one who just connected)</param>
         internal void SendSpawn(ushort newPlayerId)
         {
             Message message = Message.Create(MessageSendMode.Reliable, MessageId.SpawnPlayer);

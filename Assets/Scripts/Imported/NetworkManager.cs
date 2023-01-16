@@ -1,5 +1,6 @@
 ﻿using Riptide.Utils;
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Riptide.Demos.PlayerHosted
@@ -58,24 +59,35 @@ namespace Riptide.Demos.PlayerHosted
 
             Server = new Server();
             Server.ClientConnected += PlayerJoined;
+            Server.ClientDisconnected += PlayerLeft;
             Server.RelayFilter = new MessageRelayFilter(typeof(MessageId), MessageId.SpawnPlayer, MessageId.PlayerMovement);
 
             Client = new Client();
-            Client.Connected += DidConnect;
+            Client.Connected += DidConnect; // Invoked when another non-local client connects
             Client.ConnectionFailed += FailedToConnect;
-            Client.ClientDisconnected += PlayerLeft;
+            Client.ClientDisconnected += PlayerLeft; // Invoked when another non-local client disconnects
             Client.Disconnected += DidDisconnect;
 
             string[] args = Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length; i++)
             {
-                Debug.LogError($"i={i}, arg={args[i]}");
+                Debug.Log($"i={i}, arg={args[i]}");
                 if (args[i] == "-launch-as-server")
                 {
                     Debug.Log("Launched as server");
                     //isRemoteServer = true;
                     UIManager.Singleton.HostClicked();
                 }
+            }
+        }
+
+        //DEBUG:
+        private void OnGUI()
+        {
+            Dictionary<ushort, Player> players = Player.List;
+            foreach (Player player in players.Values)
+            {
+                GUILayout.Box($"{player.Id} {player.name}");
             }
         }
 
@@ -122,6 +134,7 @@ namespace Riptide.Demos.PlayerHosted
 
         private void PlayerJoined(object sender, ServerConnectedEventArgs e)
         {
+            // Sends a spawn message to all the clients other than the one who triggered the event by connecting
             foreach (Player player in Player.List.Values)
                 if (player.Id != e.Client.Id)
                     player.SendSpawn(e.Client.Id);
@@ -130,6 +143,11 @@ namespace Riptide.Demos.PlayerHosted
         private void PlayerLeft(object sender, ClientDisconnectedEventArgs e)
         {
             Destroy(Player.List[e.Id].gameObject);
+        }
+
+        private void PlayerLeft(object sender, ServerDisconnectedEventArgs e) //CHANGES
+        {
+            Destroy(Player.List[e.Client.Id].gameObject);
         }
 
         private void DidDisconnect(object sender, DisconnectedEventArgs e)

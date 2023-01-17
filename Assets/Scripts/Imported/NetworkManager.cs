@@ -57,16 +57,8 @@ namespace Riptide.Demos.PlayerHosted
         {
             RiptideLogger.Initialize(Debug.Log, Debug.Log, Debug.LogWarning, Debug.LogError, false);
 
-            Server = new Server();
-            Server.ClientConnected += PlayerJoined;
-            Server.ClientDisconnected += PlayerLeft;
-            Server.RelayFilter = new MessageRelayFilter(typeof(MessageId), MessageId.SpawnPlayer, MessageId.PlayerMovement);
-
-            Client = new Client();
-            Client.Connected += DidConnect; // Invoked when another non-local client connects
-            Client.ConnectionFailed += FailedToConnect;
-            Client.ClientDisconnected += PlayerLeft; // Invoked when another non-local client disconnects
-            Client.Disconnected += DidDisconnect;
+            InitializeServer();
+            InitializeClient();
 
             string[] args = Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length; i++)
@@ -79,6 +71,23 @@ namespace Riptide.Demos.PlayerHosted
                     UIManager.Singleton.HostClicked();
                 }
             }
+        }
+
+        private void InitializeServer()
+        {
+            Server = new Server();
+            Server.ClientConnected += PlayerJoined;
+            Server.ClientDisconnected += PlayerLeft;
+            Server.RelayFilter = new MessageRelayFilter(typeof(MessageId), MessageId.SpawnPlayer, MessageId.PlayerMovement);
+        }
+
+        private void InitializeClient()
+        {
+            Client = new Client();
+            Client.Connected += DidConnect; // Invoked when another non-local client connects
+            Client.ConnectionFailed += FailedToConnect;
+            Client.ClientDisconnected += PlayerLeft; // Invoked when another non-local client disconnects
+            Client.Disconnected += DidDisconnect;
         }
 
         //DEBUG:

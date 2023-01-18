@@ -25,7 +25,6 @@ namespace Riptide.Demos.PlayerHosted
         internal static void Spawn(ushort id, string username, Vector3 position, bool shouldSendSpawn = false)
         {
             Player player;
-            Debug.Log("Hi there");
 
             if (!NetworkManager.Singleton.isHosting && id == NetworkManager.Singleton.Client.Id)
                 player = Instantiate(NetworkManager.Singleton.LocalPlayerPrefab, position, Quaternion.identity).GetComponent<Player>();
@@ -39,11 +38,6 @@ namespace Riptide.Demos.PlayerHosted
             List.Add(id, player);
             if (shouldSendSpawn)
                 player.SendSpawn();
-        }
-
-        private static void Spawn(Message message)
-        {
-            Spawn(message.GetUShort(), message.GetString(), message.GetVector3());
         }
 
         #region Messages
@@ -77,6 +71,11 @@ namespace Riptide.Demos.PlayerHosted
             Spawn(message);
         }
 
+        private static void Spawn(Message message)
+        {
+            Spawn(message.GetUShort(), message.GetString(), message.GetVector3());
+        }
+
         /// <summary>
         /// Method called when the Server sends the spawn message associated to the current player instance to the client who just connected
         /// <br/> It informs the newly connected client about the existence of all the players already connected
@@ -93,6 +92,20 @@ namespace Riptide.Demos.PlayerHosted
 
         [MessageHandler((ushort)MessageId.PlayerMovement)]
         private static void PlayerMovement(Message message)
+        {
+            Move(message);
+        }
+
+        [MessageHandler((ushort)MessageId.PlayerMovement)]
+        private static void ServerPlayerMovement(ushort fromClientId, Message message)
+        {
+            // Relay the message to all clients except the newly connected client
+            NetworkManager.Singleton.Server.SendToAll(message, fromClientId);
+
+            Move(message);
+        }
+
+        public static void Move(Message message)
         {
             ushort playerId = message.GetUShort();
             if (List.TryGetValue(playerId, out Player player))

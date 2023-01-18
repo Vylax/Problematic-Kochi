@@ -79,7 +79,9 @@ namespace Riptide.Demos.PlayerHosted
             Server = new Server();
             Server.ClientConnected += PlayerJoined;
             Server.ClientDisconnected += PlayerLeft;
-            Server.RelayFilter = new MessageRelayFilter(typeof(MessageId), MessageId.PlayerMovement);
+
+            // TODO: Uncomment this to enable auto relaying
+            //Server.RelayFilter = new MessageRelayFilter(typeof(MessageId), MessageId.PlayerMovement);
         }
 
         private void InitializeClient()

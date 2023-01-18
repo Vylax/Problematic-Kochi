@@ -1,90 +1,13 @@
-using Riptide;
-using System.Collections;
+﻿using Riptide;
 using System.Collections.Generic;
 using UnityEngine;
-using static StorageSystem;
-using static Utils;
 
-public class PlayerCharacter
+public class OldPlayer : MonoBehaviour
 {
-    // TODO: adjust the protection level of these attributes
-    ushort Id;
-    string username;
-
-    bool alive;
-    public GameObject gameObject;
-
-    public Transform transform => gameObject.transform;
-
-    // TODO: Constructor on spawn, called by server message to other clients (the ones not associacted to this player character)
-
-    // TODO: Constructor on joining raid, called from Player on the server side for the server !
-    public PlayerCharacter(Player player)
-    {
-        Id = player.Id;
-        username = player.username;
-
-        // TODO: find a way to set alive to true only once status is InGame
-        // TODO: find a way to set gameObject only once status is InGame
-        // Possible solution: used the equivalent of the former spawn method and sends message to server when spawned, then setting alive and gameObject when spawning on server
-    }
-}
-
-public class Player
-{
-    public enum Status
-    {
-        Connected,
-        Hideout,
-        InLobby,
-        JoiningRaid,
-        InGame,
-        LeavingRaid
-    }
-
-    // TODO: revise the protections levels
-    public ushort Id; // Client Id relative to the server (can change and is not associated to the player account when the current connection ends)
-    public ushort AccountId; // Will be used to retrieve the player data from the database on connection, it is unique to each player accounts
-    public string username;
-    public Status status;
-    public SceneId currentSceneId;
-    public Storage inventory;
-    public Storage stash;
-    public PlayerCharacter character;
-
-    public Player(Message message)
-    {
-        Id = message.GetUShort();
-        username = message.GetString();
-        AccountId = message.GetUShort();
-
-        status = Status.Connected;
-        currentSceneId = SceneId.MainMenu;
-
-        // TODO: fetch player storages data here
-        inventory = new Storage(10, 10);
-        stash = new Storage(10, 10);
-
-        character = new PlayerCharacter(this);
-    }
-
-    public void SetScene(SceneId sceneId)
-    {
-        // Maybe do some stuff here ?
-        currentSceneId = sceneId;
-    }
-
-    public void SetScene(int sceneId)
-    {
-        SetScene((SceneId)sceneId);
-    }
-
-    // TODO: add methods that handle status changes
-
-
-    //TODO: adjust all the following code to work in the current class
-
     internal static Dictionary<ushort, OldPlayer> List = new Dictionary<ushort, OldPlayer>();
+
+    internal ushort Id;
+    private string username;
 
     private void OnDestroy()
     {
@@ -93,25 +16,24 @@ public class Player
 
     private void Move(Vector3 newPosition, Vector3 forward)
     {
-        character.transform.position = newPosition;
+        transform.position = newPosition;
         forward.y = 0;
-        character.transform.forward = forward.normalized;
+        transform.forward = forward.normalized;
     }
 
     internal static void Spawn(ushort id, string username, Vector3 position, bool shouldSendSpawn = false)
     {
-        // TODO: send a Player instance to the associated client
-        PlayerCharacter character;
+        OldPlayer player;
 
         if (!NetworkManager.Singleton.isHosting && id == NetworkManager.Singleton.Client.Id)
-            character = new PlayerCharacter();
+            player = Instantiate(NetworkManager.Singleton.LocalPlayerPrefab, position, Quaternion.identity).GetComponent<OldPlayer>();
         else
-            character = Instantiate(NetworkManager.Singleton.PlayerPrefab, position, Quaternion.identity).GetComponent<OldPlayer>();
+            player = Instantiate(NetworkManager.Singleton.PlayerPrefab, position, Quaternion.identity).GetComponent<OldPlayer>();
 
-        character.Id = id;
-        character.username = username;
+        player.Id = id;
+        player.username = username;
         // TODO: declare accountId here
-        character.name = $"Player {id} ({username})";
+        player.name = $"Player {id} ({username})";
 
         List.Add(id, player);
         if (shouldSendSpawn)

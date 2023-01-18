@@ -27,7 +27,7 @@ Problematic Kochi is a multiplayer Top-Down shooter game I'm working on.
 - Implement dropping item into the world
 - Implement world storages (dead bodies, containers)
 - Implement proximity world inventory (storage with all items on the ground within a certain radius)
-- Change the Storage System to allow for special slots (the equipment ones) which have special properties (size insensitives, item restriction, ...) (maybe use child class by inheritance ???)
+- Change the Storage System to allow for special slots (the equipment ones) which have special properties (size insensitives, item restriction, ...) (maybe use child class by inheritance ???) (==> Make Equipment class)
 
 #### Data distribution (Server-Clients-DBMS)
 ##### Inventory

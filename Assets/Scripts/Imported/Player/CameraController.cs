@@ -1,57 +1,54 @@
 ﻿using UnityEngine;
 
-namespace Riptide.Demos.PlayerHosted
+public class CameraController : MonoBehaviour
 {
-    public class CameraController : MonoBehaviour
+    [SerializeField] private OldPlayer player;
+    [SerializeField] private float sensitivity = 100f;
+    [SerializeField] private float clampAngle = 85f;
+
+    private float verticalRotation;
+    private float horizontalRotation;
+
+    private void Start()
     {
-        [SerializeField] private Player player;
-        [SerializeField] private float sensitivity = 100f;
-        [SerializeField] private float clampAngle = 85f;
+        verticalRotation = transform.localEulerAngles.x;
+        horizontalRotation = player.transform.eulerAngles.y;
+    }
 
-        private float verticalRotation;
-        private float horizontalRotation;
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Escape))
+            ToggleCursorMode();
 
-        private void Start()
-        {
-            verticalRotation = transform.localEulerAngles.x;
-            horizontalRotation = player.transform.eulerAngles.y;
-        }
+        if (Cursor.lockState == CursorLockMode.Locked)
+            Look();
 
-        private void Update()
-        {
-            if (Input.GetKeyDown(KeyCode.Escape))
-                ToggleCursorMode();
+        Debug.DrawRay(transform.position, transform.forward * 2, Color.green);
+    }
 
-            if (Cursor.lockState == CursorLockMode.Locked)
-                Look();
+    private void Look()
+    {
+        float mouseVertical = -Input.GetAxis("Mouse Y");
+        float mouseHorizontal = Input.GetAxis("Mouse X");
 
-            Debug.DrawRay(transform.position, transform.forward * 2, Color.green);
-        }
+        verticalRotation += mouseVertical * sensitivity * Time.deltaTime;
+        horizontalRotation += mouseHorizontal * sensitivity * Time.deltaTime;
 
-        private void Look()
-        {
-            float mouseVertical = -Input.GetAxis("Mouse Y");
-            float mouseHorizontal = Input.GetAxis("Mouse X");
+        verticalRotation = Mathf.Clamp(verticalRotation, -clampAngle, clampAngle);
 
-            verticalRotation += mouseVertical * sensitivity * Time.deltaTime;
-            horizontalRotation += mouseHorizontal * sensitivity * Time.deltaTime;
+        transform.localRotation = Quaternion.Euler(verticalRotation, 0f, 0f);
+        player.transform.rotation = Quaternion.Euler(0f, horizontalRotation, 0f);
+    }
 
-            verticalRotation = Mathf.Clamp(verticalRotation, -clampAngle, clampAngle);
+    private void ToggleCursorMode()
+    {
+        Cursor.visible = !Cursor.visible;
 
-            transform.localRotation = Quaternion.Euler(verticalRotation, 0f, 0f);
-            player.transform.rotation = Quaternion.Euler(0f, horizontalRotation, 0f);
-        }
+        if (Cursor.lockState == CursorLockMode.None)
+            Cursor.lockState = CursorLockMode.Locked;
+        else
+            Cursor.lockState = CursorLockMode.None;
 
-        private void ToggleCursorMode()
-        {
-            Cursor.visible = !Cursor.visible;
-
-            if (Cursor.lockState == CursorLockMode.None)
-                Cursor.lockState = CursorLockMode.Locked;
-            else
-                Cursor.lockState = CursorLockMode.None;
-
-            UIManager.Singleton.UpdateUIVisibility();
-        }
+        UIManager.Singleton.UpdateUIVisibility();
     }
 }

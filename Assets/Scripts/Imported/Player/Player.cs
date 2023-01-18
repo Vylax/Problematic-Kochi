@@ -25,7 +25,9 @@ namespace Riptide.Demos.PlayerHosted
         internal static void Spawn(ushort id, string username, Vector3 position, bool shouldSendSpawn = false)
         {
             Player player;
-            if (id == NetworkManager.Singleton.Client.Id)
+            Debug.Log("Hi there");
+
+            if (!NetworkManager.Singleton.isHosting && id == NetworkManager.Singleton.Client.Id)
                 player = Instantiate(NetworkManager.Singleton.LocalPlayerPrefab, position, Quaternion.identity).GetComponent<Player>();
             else
                 player = Instantiate(NetworkManager.Singleton.PlayerPrefab, position, Quaternion.identity).GetComponent<Player>();
@@ -37,6 +39,11 @@ namespace Riptide.Demos.PlayerHosted
             List.Add(id, player);
             if (shouldSendSpawn)
                 player.SendSpawn();
+        }
+
+        private static void Spawn(Message message)
+        {
+            Spawn(message.GetUShort(), message.GetString(), message.GetVector3());
         }
 
         #region Messages
@@ -55,24 +62,19 @@ namespace Riptide.Demos.PlayerHosted
         }
 
         [MessageHandler((ushort)MessageId.SpawnPlayer)]
-        private static void SpawnPlayer(Message message)
+        private static void ServerSpawnPlayer(ushort fromClientId, Message message)
         {
-            // TODO: reformat spawn so that it actually instatantiate player only if its setn by server
-            // Message temp = 
-            // Retrieve message informations
-            ushort messageClientId = message.GetUShort();
-            string messageUsername = message.GetString();
-            Vector3 messagePosition = message.GetVector3();
+            // Relay the message to all clients except the newly connected client
+            NetworkManager.Singleton.Server.SendToAll(message, fromClientId);
 
-            // TODO: disable auto relaying of the SpawnPlayer message
-            if (NetworkManager.Singleton.isHosting)
-            {
-                SendToAll(message, messageClientId);
-            }
-            else
-            {
-                Spawn(messageClientId, messageUsername, messagePosition);
-            }
+            // Spawn the player on the server side
+            Spawn(message);
+        }
+
+        [MessageHandler((ushort)MessageId.SpawnPlayer)]
+        private static void ClientSpawnPlayer(Message message)
+        {
+            Spawn(message);
         }
 
         /// <summary>

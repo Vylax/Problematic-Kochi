@@ -79,7 +79,7 @@ namespace Riptide.Demos.PlayerHosted
             Server = new Server();
             Server.ClientConnected += PlayerJoined;
             Server.ClientDisconnected += PlayerLeft;
-            Server.RelayFilter = new MessageRelayFilter(typeof(MessageId), MessageId.SpawnPlayer, MessageId.PlayerMovement);
+            Server.RelayFilter = new MessageRelayFilter(typeof(MessageId), MessageId.PlayerMovement);
         }
 
         private void InitializeClient()
@@ -147,9 +147,6 @@ namespace Riptide.Demos.PlayerHosted
 
         private void PlayerJoined(object sender, ServerConnectedEventArgs e)
         {
-            // Spawn the Player on the server side
-            //Player.Spawn(e.Client.Id, e.Client., Vector3.zero, true);
-
             // Sends a spawn message to all the clients other than the one who triggered the event by connecting
             foreach (Player player in Player.List.Values)
                 if (player.Id != e.Client.Id)

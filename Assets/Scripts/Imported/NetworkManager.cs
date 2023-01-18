@@ -41,6 +41,8 @@ namespace Riptide.Demos.PlayerHosted
         internal Server Server { get; private set; }
         internal Client Client { get; private set; }
 
+        public bool isHosting => Server.IsRunning;
+
         private void Awake()
         {
             Singleton = this;
@@ -67,7 +69,6 @@ namespace Riptide.Demos.PlayerHosted
                 if (args[i] == "-launch-as-server")
                 {
                     Debug.Log("Launched as server");
-                    //isRemoteServer = true;
                     UIManager.Singleton.HostClicked();
                 }
             }
@@ -84,7 +85,7 @@ namespace Riptide.Demos.PlayerHosted
         private void InitializeClient()
         {
             Client = new Client();
-            Client.Connected += DidConnect; // Invoked when another non-local client connects
+            Client.Connected += DidConnect; // Invoked when a connection to the server is established
             Client.ConnectionFailed += FailedToConnect;
             Client.ClientDisconnected += PlayerLeft; // Invoked when another non-local client disconnects
             Client.Disconnected += DidDisconnect;
@@ -102,10 +103,14 @@ namespace Riptide.Demos.PlayerHosted
 
         private void FixedUpdate()
         {
-            if (Server.IsRunning)
+            if (isHosting)
+            {
                 Server.Update();
-            
-            Client.Update();
+            }
+            else
+            {
+                Client.Update();
+            }
         }
 
         private void OnApplicationQuit()
@@ -117,7 +122,6 @@ namespace Riptide.Demos.PlayerHosted
         internal void StartHost()
         {
             Server.Start(port, maxPlayers);
-            Client.Connect($"127.0.0.1:{port}");
         }
 
         internal void JoinGame(string ipString)
@@ -143,6 +147,9 @@ namespace Riptide.Demos.PlayerHosted
 
         private void PlayerJoined(object sender, ServerConnectedEventArgs e)
         {
+            // Spawn the Player on the server side
+            //Player.Spawn(e.Client.Id, e.Client., Vector3.zero, true);
+
             // Sends a spawn message to all the clients other than the one who triggered the event by connecting
             foreach (Player player in Player.List.Values)
                 if (player.Id != e.Client.Id)
@@ -154,7 +161,7 @@ namespace Riptide.Demos.PlayerHosted
             Destroy(Player.List[e.Id].gameObject);
         }
 
-        private void PlayerLeft(object sender, ServerDisconnectedEventArgs e) //CHANGES
+        private void PlayerLeft(object sender, ServerDisconnectedEventArgs e) //Server Event override
         {
             Destroy(Player.List[e.Client.Id].gameObject);
         }

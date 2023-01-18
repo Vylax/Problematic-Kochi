@@ -57,7 +57,22 @@ namespace Riptide.Demos.PlayerHosted
         [MessageHandler((ushort)MessageId.SpawnPlayer)]
         private static void SpawnPlayer(Message message)
         {
-            Spawn(message.GetUShort(), message.GetString(), message.GetVector3());
+            // TODO: reformat spawn so that it actually instatantiate player only if its setn by server
+            // Message temp = 
+            // Retrieve message informations
+            ushort messageClientId = message.GetUShort();
+            string messageUsername = message.GetString();
+            Vector3 messagePosition = message.GetVector3();
+
+            // TODO: disable auto relaying of the SpawnPlayer message
+            if (NetworkManager.Singleton.isHosting)
+            {
+                SendToAll(message, messageClientId);
+            }
+            else
+            {
+                Spawn(messageClientId, messageUsername, messagePosition);
+            }
         }
 
         /// <summary>

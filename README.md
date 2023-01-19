@@ -8,8 +8,8 @@ Problematic Kochi is a multiplayer Top-Down shooter game I'm working on.
 	- Connected (logged into the game but still in main menu)
 	- Hideout (logged into the game but still in main hideout)
 	- In lobby (in the process of joining the game : queueing, waiting for raid start, loading scene, whatever)
-	- Joining raid (the raid is fully loaded in background, all clients infos are synced and the client set their status to ready and the server allows raiding, they are being sent to the raid)
-	- In game (they are raiding)
+	- Joining raid (the raid is fully loaded in background, the client set their status to ready and the server allows raiding, they are being sent to the raid, syncing all clients infos (with PlayerCharacter))
+	- In game (they are raiding, this state is reach as soon as the playercharacter is spawned)
 	- Leaving raid (they successfully extracted or died, make sure to make them immortal at this point and remove them from other raiders view (and drop body if they died), send them to Connected status when everything is good and display raid debrief)
 
 - Players characters should no longer be spawned on connection in the raid

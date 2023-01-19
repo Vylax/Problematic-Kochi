@@ -123,7 +123,7 @@ public class Player
     /// <summary>
     /// Called when the local Client established a connection to the server and was Spawned
     /// <br/> It tells the server that the Player was spawned
-    /// </summary>
+    /// </summary>0
     private void SendSpawn()
     {
         Message message = Message.Create(MessageSendMode.Reliable, MessageId.SpawnPlayer);

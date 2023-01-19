@@ -3,11 +3,15 @@ using Riptide.Utils;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using static UnityEditor.Experimental.GraphView.GraphView;
 
 internal enum MessageId : ushort
 {
-    SpawnPlayer = 1,
-    PlayerMovement
+    //SpawnPlayer = 1,
+    NewRaider = 1,
+    PlayerMovement,
+    PlayerRegister,
+    PlayerStatus
 }
 
 public class NetworkManager : MonoBehaviour
@@ -136,9 +140,29 @@ public class NetworkManager : MonoBehaviour
         Client.Disconnect();
     }
 
+    /// <summary>
+    /// Called on the Client side when the client received a message from the server telling it the Player registration was successful and providing the missing info to create the Player class
+    /// </summary>
+    internal void OnPlayerRegistered()
+    {
+        // Update client player with information received from the server
+        Player clientPlayer = players[Client.Id];
+        clientPlayer.Update(e.Player);
+
+        // Send message to the client to update the UI
+        Client.Send(new PlayerRegistered(clientPlayer));
+    }
+
     private void DidConnect(object sender, EventArgs e)
     {
-        OldPlayer.Spawn(Client.Id, UIManager.Singleton.Username, Vector3.zero, true);
+        // Create new player instance with status Connected
+        Player newPlayer = new Player(Client.Id, UIManager.Singleton.Username, Status.Connected, 0);
+
+        // Add player to list of players
+        players.Add(Client.Id, newPlayer);
+
+        // Ask server to register Player
+        newPlayer.AskRegister();
     }
 
     private void FailedToConnect(object sender, EventArgs e)
@@ -156,11 +180,15 @@ public class NetworkManager : MonoBehaviour
 
     private void PlayerLeft(object sender, ClientDisconnectedEventArgs e)
     {
+        // TODO: Remove from Raiders List and Destroy
+        // TODO: also think about the disconnection handling and join back while in raid problem
         Destroy(OldPlayer.List[e.Id].gameObject);
     }
 
     private void PlayerLeft(object sender, ServerDisconnectedEventArgs e) //Server Event override
     {
+        // TODO: Remove from List and send messages to client and then Destroy
+        // TODO: also think about the disconnection handling and join back while in raid problem
         Destroy(OldPlayer.List[e.Client.Id].gameObject);
     }
 

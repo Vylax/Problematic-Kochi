@@ -4,7 +4,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using static UnityEditor.Experimental.GraphView.GraphView;
 
 internal enum MessageId : ushort
 {
@@ -14,7 +13,7 @@ internal enum MessageId : ushort
     PlayerRegister,
     PlayerStatus,
     SyncRaider,
-    SpawnPlayer // TODO REMOVE IT!!!
+    //SpawnPlayer // TODO REMOVE IT!!!
 }
 
 public class NetworkManager : MonoBehaviour
@@ -105,15 +104,15 @@ public class NetworkManager : MonoBehaviour
     //DEBUG:
     private void OnGUI()
     {
-        if (Player.localPlayer.isRegistered && GUILayout.Button($"SetStatus({buttonStatus.ToString()})"))
+        if (Player.localPlayer != null && Player.localPlayer.isRegistered && GUILayout.Button($"SetStatus({buttonStatus.ToString()})"))
         {
             Player.localPlayer.ClientAskSetStatus(buttonStatus);
         }
 
-        Dictionary<ushort, OldPlayer> players = OldPlayer.List;
-        foreach (OldPlayer player in players.Values)
+        Dictionary<ushort, Player> players = Player.List;
+        foreach (Player player in players.Values)
         {
-            GUILayout.Box($"{player.Id} {player.name}");
+            GUILayout.Box($"{player.Id} {player.username}");
         }
     }
 
@@ -167,36 +166,38 @@ public class NetworkManager : MonoBehaviour
 
     private void PlayerJoined(object sender, ServerConnectedEventArgs e)
     {
+        // TODO
         // Sends a spawn message to all the clients other than the one who triggered the event by connecting
-        foreach (OldPlayer player in OldPlayer.List.Values)
+        /*foreach (OldPlayer player in OldPlayer.List.Values)
             if (player.Id != e.Client.Id)
-                player.SendSpawn(e.Client.Id);
+                player.SendSpawn(e.Client.Id);*/
     }
 
     private void PlayerLeft(object sender, ClientDisconnectedEventArgs e)
     {
         // TODO: Remove from Raiders List and Destroy
         // TODO: also think about the disconnection handling and join back while in raid problem
-        Destroy(OldPlayer.List[e.Id].gameObject);
+        //Destroy(OldPlayer.List[e.Id].gameObject);
     }
 
     private void PlayerLeft(object sender, ServerDisconnectedEventArgs e) //Server Event override
     {
         // TODO: Remove from List and send messages to client and then Destroy
         // TODO: also think about the disconnection handling and join back while in raid problem
-        Destroy(OldPlayer.List[e.Client.Id].gameObject);
+        //Destroy(OldPlayer.List[e.Client.Id].gameObject);
     }
 
     private void DidDisconnect(object sender, DisconnectedEventArgs e)
     {
-        foreach (OldPlayer player in OldPlayer.List.Values)
+        // TODO
+        /*foreach (OldPlayer player in OldPlayer.List.Values)
             Destroy(player.gameObject);
-
+        */
         UIManager.Singleton.BackToMain();
     }
 
     public GameObject Spawn(ushort Id)
     {
-        return Instantiate((Id == Singleton.Client.Id ? LocalPlayerPrefab : PlayerPrefab), )
+        return Instantiate((Id == Singleton.Client.Id ? LocalPlayerPrefab : PlayerPrefab), Vector3.zero, Quaternion.identity);
     }
 }

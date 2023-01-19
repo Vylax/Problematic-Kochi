@@ -405,85 +405,7 @@ public class Player
         List.Remove(Id);
     }
 
-    internal static void Spawn(ushort id, string username, Vector3 position, bool shouldSendSpawn = false)
-    {
-        /*
-        // TODO: send a Player instance to the associated client
-        PlayerCharacter character;
-
-        // create new player instance
-        Player player = new Player(id, username, SceneManager.GetActiveScene().buildIndex);
-        //player.AskRegister();
-
-        if (!NetworkManager.Singleton.isHosting && id == NetworkManager.Singleton.Client.Id)
-            character = new PlayerCharacter();
-        else
-            character = Instantiate(NetworkManager.Singleton.PlayerPrefab, position, Quaternion.identity).GetComponent<OldPlayer>();
-
-        character.Id = id;
-        character.username = username;
-        // TODO: declare accountId here
-        character.name = $"Player {id} ({username})";
-
-        List.Add(id, player);
-        if (shouldSendSpawn)
-            player.SendSpawn();*/
-    }
-
     #region Messages
-
-    /// <summary>
-    /// Called when the local Client established a connection to the server and was Spawned
-    /// <br/> It tells the server that the Player was spawned
-    /// </summary>0
-    private void SendSpawn()
-    {
-        Message message = Message.Create(MessageSendMode.Reliable, MessageId.SpawnPlayer);
-        message.AddUShort(Id);
-        message.AddString(username);
-
-        // TODO: add actual accountId here
-        message.AddUShort((ushort)Random.Range(0, 69420));
-
-        // TODO: remove this, rename method something like SendConnected and update all the associated methods
-        //message.AddVector3(transform.position);
-        NetworkManager.Singleton.Client.Send(message);
-    }
-
-    [MessageHandler((ushort)MessageId.SpawnPlayer)]
-    private static void ServerSpawnPlayer(ushort fromClientId, Message message)
-    {
-        // Relay the message to all clients except the newly connected client
-        NetworkManager.Singleton.Server.SendToAll(message, fromClientId);
-
-        // Spawn the player on the server side
-        Spawn(message);
-    }
-
-    [MessageHandler((ushort)MessageId.SpawnPlayer)]
-    private static void ClientSpawnPlayer(Message message)
-    {
-        Spawn(message);
-    }
-
-    private static void Spawn(Message message)
-    {
-        Spawn(message.GetUShort(), message.GetString(), message.GetVector3());
-    }
-
-    /// <summary>
-    /// Method called when the Server sends the spawn message associated to the current player instance to the client who just connected
-    /// <br/> It informs the newly connected client about the existence of all the players already connected
-    /// </summary>
-    /// <param name="newPlayerId">the Id of the Client who will receive the message (the one who just connected)</param>
-    internal void SendSpawn(ushort newPlayerId)
-    {
-        Message message = Message.Create(MessageSendMode.Reliable, MessageId.SpawnPlayer);
-        message.AddUShort(Id);
-        message.AddString(username);
-        //message.AddVector3(transform.position);
-        NetworkManager.Singleton.Server.Send(message, newPlayerId);
-    }
 
     [MessageHandler((ushort)MessageId.PlayerMovement)]
     private static void PlayerMovement(Message message)
@@ -634,8 +556,6 @@ public class Player
     /// <summary>
     /// Called when a client sends his known raiders ids list to the server
     /// </summary>
-    /// <param name="fromClientId"></param>
-    /// <param name="message"></param>
     [MessageHandler((ushort)MessageId.SyncRaider)]
     private static void ServerSyncRaider(ushort fromClientId, Message message)
     {

@@ -2,7 +2,7 @@
 
 public class CameraController : MonoBehaviour
 {
-    [SerializeField] private OldPlayer player;
+    [SerializeField] private PlayerCharacter player;
     [SerializeField] private float sensitivity = 100f;
     [SerializeField] private float clampAngle = 85f;
 

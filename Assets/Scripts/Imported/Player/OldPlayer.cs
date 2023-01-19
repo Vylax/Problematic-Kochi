@@ -1,4 +1,4 @@
-﻿using Riptide;
+﻿/*using Riptide;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -117,4 +117,4 @@ public class OldPlayer : MonoBehaviour
             player.Move(message.GetVector3(), message.GetVector3());
     }
     #endregion
-}
+}*/

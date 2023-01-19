@@ -7,7 +7,7 @@ using UnityEngine;
 using static StorageSystem;
 using static Utils;
 
-public class PlayerCharacter
+public class PlayerCharacter : MonoBehaviour
 {
     // TODO: adjust the protection level of these attributes
     ushort Id;
@@ -57,6 +57,7 @@ public class PlayerCharacter
         // TODO
         alive = true;
         // TODO: Instantiate prefab here
+        gameObject = Instantiate<>
         // TODO: When the storage implementation is complete, Display equipment here (the equipment should be passed by the NewRaider message along with the PlayerCharacter data
     }
 
@@ -173,6 +174,22 @@ public class Player
         // Ask the server permission to change status
         if (clientInstruction)
         {
+            if(status == Status.JoiningRaid)
+            {
+                AskJoinRaid();
+                return false;
+            }else if(status == Status.InGame)
+            {
+                if (canActuallyJoinRaid)
+                {
+                    // TODO: ask server to go in game
+                }
+                else
+                {
+                    Debug.LogError($"Coudln't join raid because Player {Id} ({username}) isn't actually ready: canActuallyJoinRaid={canActuallyJoinRaid}");
+                }
+                return false;
+            }
             Message message = Message.Create(MessageSendMode.Reliable, MessageId.PlayerStatus);
             message.AddUShort((ushort)status);
 
@@ -195,6 +212,8 @@ public class Player
             case Status.Hideout:
                 // TODO: update current scene index
                 break;
+            case Status.InGame:
+                // TODO: Spawn player
             default:
                 break;
         }

@@ -3,6 +3,10 @@
 Problematic Kochi is a multiplayer Top-Down shooter game I'm working on.
 
 ## Todo
+### Messages
+- implement Message.AddStatus()
+- implement Message.AddStorage()
+
 ### Rewrite the player class
 - The players have a status (enum): 
 	- Connected (logged into the game but still in main menu)

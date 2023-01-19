@@ -1,6 +1,7 @@
 ﻿using Riptide;
 using Riptide.Utils;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using static UnityEditor.Experimental.GraphView.GraphView;
@@ -11,7 +12,8 @@ internal enum MessageId : ushort
     NewRaider = 1,
     PlayerMovement,
     PlayerRegister,
-    PlayerStatus
+    PlayerStatus,
+    SpawnPlayer //TODO REMOVE IT!!!
 }
 
 public class NetworkManager : MonoBehaviour
@@ -45,6 +47,9 @@ public class NetworkManager : MonoBehaviour
     internal Client Client { get; private set; }
 
     public bool isHosting => Server.IsRunning;
+
+    // DEBUG
+    public Player.Status buttonStatus;
 
     private void Awake()
     {
@@ -99,6 +104,11 @@ public class NetworkManager : MonoBehaviour
     //DEBUG:
     private void OnGUI()
     {
+        if (Player.localPlayer.isRegistered && GUILayout.Button($"SetStatus({buttonStatus.ToString()})"))
+        {
+            Player.localPlayer.SetStatus(buttonStatus, true);
+        }
+
         Dictionary<ushort, OldPlayer> players = OldPlayer.List;
         foreach (OldPlayer player in players.Values)
         {
@@ -140,29 +150,13 @@ public class NetworkManager : MonoBehaviour
         Client.Disconnect();
     }
 
-    /// <summary>
-    /// Called on the Client side when the client received a message from the server telling it the Player registration was successful and providing the missing info to create the Player class
-    /// </summary>
-    internal void OnPlayerRegistered()
-    {
-        // Update client player with information received from the server
-        Player clientPlayer = players[Client.Id];
-        clientPlayer.Update(e.Player);
-
-        // Send message to the client to update the UI
-        Client.Send(new PlayerRegistered(clientPlayer));
-    }
-
     private void DidConnect(object sender, EventArgs e)
     {
-        // Create new player instance with status Connected
-        Player newPlayer = new Player(Client.Id, UIManager.Singleton.Username, Status.Connected, 0);
+        // Create the local Player instance with status Connected
+        Player.localPlayer = new Player(Client.Id, UIManager.Singleton.Username, Player.Status.Connected);
 
-        // Add player to list of players
-        players.Add(Client.Id, newPlayer);
-
-        // Ask server to register Player
-        newPlayer.AskRegister();
+        // Ask server to register the Player
+        Player.localPlayer.AskRegister();
     }
 
     private void FailedToConnect(object sender, EventArgs e)

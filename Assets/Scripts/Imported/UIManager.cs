@@ -24,6 +24,9 @@ public class UIManager : MonoBehaviour
     [SerializeField] private InputField usernameField;
     [SerializeField] private InputField hostIPField;
 
+    // DEBUG
+    public bool playerIsReadyToJoinRaid = false;
+
     internal string Username => usernameField.text;
 
     private void Awake()

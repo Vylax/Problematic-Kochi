@@ -2,15 +2,14 @@ using Riptide;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-//using System.Numerics;
 using UnityEngine;
 using static StorageSystem;
 using static Utils;
 
-public class PlayerCharacter : MonoBehaviour
+public class PlayerCharacter
 {
     // TODO: adjust the protection level of these attributes
-    ushort Id;
+    public ushort Id;
     string username;
     Player.Status status;
     bool alive;
@@ -57,7 +56,7 @@ public class PlayerCharacter : MonoBehaviour
         // TODO
         alive = true;
         // TODO: Instantiate prefab here
-        gameObject = Instantiate<>
+        gameObject = NetworkManager.Singleton.Spawn(Id);
         // TODO: When the storage implementation is complete, Display equipment here (the equipment should be passed by the NewRaider message along with the PlayerCharacter data
     }
 
@@ -117,12 +116,12 @@ public class Player
     /// returns true if the player wants to join the raid: that doesn't mean he can !
     /// </summary>
     public bool readyToRaid => UIManager.Singleton.playerIsReadyToJoinRaid;
-    private bool allRaidersCollected = false;
+    private bool raiderSyncedWithServer = false;
 
     public bool canActuallyJoinRaid
     {
         // TODO: this must return true only if readyToRaid is true and map is ready to be loaded and all playerchar info were received
-        get { return readyToRaid && allRaidersCollected; }
+        get { return readyToRaid && raiderSyncedWithServer; }
     }
 
     public bool IsRaider => status == Status.JoiningRaid || status == Status.InGame;
@@ -159,72 +158,66 @@ public class Player
     }
 
     // TODO: rewrite this while avoiding code repetition between server side and client side
-    public bool SetStatus(Status newStatus, bool clientInstruction=false)
+    public bool SetStatus(Status newStatus)
     {
         Status oldStatus = status;
 
-        // TODO: continue only if server allows status change, there should be more checks than just changing to the current status
-        if (status == newStatus || !isRegistered && (newStatus == Status.JoiningRaid || newStatus == Status.InGame || newStatus == Status.LeavingRaid))
-        {
-            // TODO: maybe send error to client
-            Debug.LogError($"Coudln't change Player {Id} ({username}) status from {oldStatus} to {newStatus}");
-            return false;
-        }
-
-        // Ask the server permission to change status
-        if (clientInstruction)
-        {
-            if(status == Status.JoiningRaid)
-            {
-                AskJoinRaid();
-                return false;
-            }else if(status == Status.InGame)
-            {
-                if (canActuallyJoinRaid)
-                {
-                    // TODO: ask server to go in game
-                }
-                else
-                {
-                    Debug.LogError($"Coudln't join raid because Player {Id} ({username}) isn't actually ready: canActuallyJoinRaid={canActuallyJoinRaid}");
-                }
-                return false;
-            }
-            Message message = Message.Create(MessageSendMode.Reliable, MessageId.PlayerStatus);
-            message.AddUShort((ushort)status);
-
-            Debug.LogWarning($"Player {Id} ({username}) asked server permission to change its status from {oldStatus} to {newStatus}");
-            NetworkManager.Singleton.Client.Send(message);
-
-            return false;
-        }
+        // The conditioning should happen here
 
         // Change status
         status = newStatus;
         Debug.Log($"Player {Id} ({username}) changed status: {oldStatus} --> {newStatus}");
 
+        // The message sending part applies only to the server
+        if (NetworkManager.Singleton.isHosting)
+        {
+            if (status == Status.JoiningRaid)
+            {
+                // Prepare the message to send to other raiders
+                Message raidersMessage = RaiderMessage;
+
+                foreach (Player raider in ServerListRaiders)
+                {
+                    // Send to ALL the Raiders the RaiderMessage of the new raider (ALL includes the new raider)
+                    NetworkManager.Singleton.Server.Send(raidersMessage, raider.Id);
+
+                    // Send to the new raider the RaiderMessage of all raiders except for himself
+                    if (raider.Id != Id)
+                        NetworkManager.Singleton.Server.Send(raider.RaiderMessage, raider.Id);
+                }
+            }
+            else
+            {
+                Message answer = StatusMessage;
+
+                if (status == Status.InGame || status == Status.LeavingRaid)
+                {
+                    // Send status Update to all Raiders
+                    foreach (Player raider in ServerListRaiders)
+                    {
+                        NetworkManager.Singleton.Server.Send(answer, raider.Id);
+                    }
+                }
+                else
+                {
+                    // Otherwise tell only the Client that sent the message about the status update
+                    NetworkManager.Singleton.Server.Send(answer, Id);
+                }
+            }
+        }
+
         switch (newStatus)
         {
-            case Status.JoiningRaid:
-                //TODO: Send message to server to ask for other raiders PlayerCharacter infos and have a "syncReadyToJoin" attribute that is set to true only when all playerchar infos were received and map is ready to be loaded
-
-                break;
             case Status.Hideout:
                 // TODO: update current scene index
-                break;
-            case Status.InGame:
-                // TODO: Spawn player
-            default:
                 break;
         }
 
         if(character == null)
         {
-            if(IsRaider)
-            {
-                // This shouldn't happen if the procedure is working correctly
+            // This shouldn't happen if the procedure is working correctly
+            if (IsRaider)
                 Debug.LogError("The player is a Raider but its PlayerCharacter instance hasn't been initialized");
-            }
 
             // This is normal it just mean the status update doesn't affect the ongoing raid
             return true;
@@ -234,6 +227,82 @@ public class Player
         character.SetStatus(newStatus);
 
         return true;
+    }
+
+    /// <summary>
+    /// (CLIENT ONLY) Called by the Client when attempting to change his status
+    /// </summary>
+    public bool ClientAskSetStatus(Status newStatus)
+    {
+        Status oldStatus = status;
+
+        // TODO: check if status change is allowed, there should be more checks than the ones in place
+        if (status == newStatus || !isRegistered && (newStatus == Status.JoiningRaid || newStatus == Status.InGame || newStatus == Status.LeavingRaid))
+        {
+            Debug.LogError($"Coudln't change Player {Id} ({username}) status from {oldStatus} to {newStatus}");
+            return false;
+        }
+
+        bool condition = true;
+
+        switch (newStatus)
+        {
+            case Status.JoiningRaid:
+                condition = isRegistered && status == Status.InLobby && readyToRaid;
+                break;
+            case Status.InGame:
+                condition = canActuallyJoinRaid;
+                break;
+        }
+
+        // Ask the server permission to change status
+        AskServerForStatusChange(newStatus, condition);
+
+        return true;
+    }
+
+    private Message RaiderMessage
+    {
+        get
+        {
+            Message raiderMessage = Message.Create(MessageSendMode.Reliable, MessageId.NewRaider);
+            raiderMessage.AddUShort(Id);
+            raiderMessage.AddString(username);
+            raiderMessage.AddUShort((ushort)status);
+            // TODO: when storage system is finished, also send equipment so it can be displayed
+
+            return raiderMessage;
+        }
+    }
+
+    private Message StatusMessage
+    {
+        get
+        {
+            Message message = Message.Create(MessageSendMode.Reliable, MessageId.PlayerStatus);
+            message.AddUShort(Id);
+            message.AddUShort((ushort)status);
+
+            return message;
+        }
+    }
+
+    /// <summary>
+    /// (CLIENT ONLY) Sends a message to the server to request a status change
+    /// </summary>
+    private void AskServerForStatusChange(Status newStatus, bool condition=true)
+    {
+        if (!condition)
+        {
+            Debug.LogError($"Couldn't ask Server to update status because the condition wasn't met");
+            return;
+        }
+
+        Message message = Message.Create(MessageSendMode.Reliable, MessageId.PlayerStatus);
+        message.AddUShort((ushort)newStatus);
+
+        Debug.LogWarning($"Player {Id} ({username}) asked server permission to change its status from {status} to {newStatus}");
+        NetworkManager.Singleton.Client.Send(message);
     }
 
     /// <summary>
@@ -255,49 +324,55 @@ public class Player
     }
 
     /// <summary>
-    /// Ask the Server to join the raid, should be called by a UI button press later on
-    /// </summary>
-    public void AskJoinRaid()
-    {
-        if(isRegistered && status == Status.InLobby && readyToRaid)
-        {
-            // TODO: figure out if there's anything relevant to send here
-            Message message = Message.Create(MessageSendMode.Reliable, MessageId.NewRaider);
-            message.AddUShort(AccountId);
-            NetworkManager.Singleton.Client.Send(message);
-            Debug.Log("Successfully asked server to Join Raid");
-        }
-        else
-        {
-            Debug.LogError($"Couldn't ask Server to Join Raid");
-        }
-    }
-
-    /// <summary>
     /// Called on the client-side when the Player is allowed to Join the Raid
     /// </summary>
     /// <param name="raidersCount">The number of raider there was before the Raid Join was granted</param>
-    public void JoinRaidGranted(int raidersCount)
+    public void JoinRaidGranted()
     {
         // Initialize PlayerCharacter instance
         character = new PlayerCharacter(this);
 
         // Set Status
         if (!SetStatus(Status.JoiningRaid))
+        {
+            Debug.LogError("Server allowed player to join raid but player status cannot be set to JoiningRaid, this shouldn't happen");
             return;
+        }
 
         // Start a Coroutine that collects all raiders info are collected
-        NetworkManager.Singleton.StartCoroutine(CollectAllRaidersFromServer(raidersCount));
+        NetworkManager.Singleton.StartCoroutine(SyncRaidersWithServer());
     }
 
-    private IEnumerator CollectAllRaidersFromServer(int raidersCount)
+    // Send message to server with known raiders Ids
+    // Server responds with all raiders Ids List, if some are missing, server sends NewRaider message for them
+    // If all are received within 10 sec, sends known raiders Ids to server
+    // Server responds (with all raiders Ids list again) and if they are no new raiders, Player status is set to Synced on both client and server
+    private IEnumerator SyncRaidersWithServer()
     {
-        Debug.Log($"Started collecting raiders from Server: {ClientListRaiders.Count}/{raidersCount}");
+        Debug.Log($"Started collecting raiders from Server");
+        ServerListRaidersIds = new List<ushort>();
 
-        yield return new WaitUntil(() => ClientListRaiders.Count == raidersCount);
-        allRaidersCollected = true;
+        SendClientListRaidersIdsToServer();
 
-        Debug.Log($"Successfully collected {ClientListRaiders.Count}/{raidersCount} raiders from Server");
+        yield return new WaitForSeconds(3);
+        while (!ClientListRaidersIds.SequenceEqual(ServerListRaidersIds))
+        {
+            // Send message to server with the current state of ClientListRaidersIds
+            SendClientListRaidersIdsToServer();
+
+            yield return new WaitForSeconds(10);
+        }
+
+        raiderSyncedWithServer = true;
+
+        Debug.Log($"Successfully synced raider with Server");
+    }
+
+    private void SendClientListRaidersIdsToServer()
+    {
+        Message message = Message.Create(MessageSendMode.Reliable, MessageId.SyncRaider);
+        message.AddUShorts(ClientListRaidersIds.ToArray());
+        NetworkManager.Singleton.Client.Send(message);
     }
 
     //TODO: adjust all the following code to work in the current class
@@ -320,7 +395,9 @@ public class Player
     /// (CLIENT ONLY) Returns all the Raiders PlayerCharacter instances
     /// <br/> Note: This List doesn't contain localPlayer.character
     /// </summary>
-    internal static List<PlayerCharacter> ClientListRaiders => new List<PlayerCharacter>();
+    internal static List<PlayerCharacter> ClientListRaiders = new List<PlayerCharacter>();
+    internal static List<ushort> ClientListRaidersIds => ClientListRaiders.Select(player => player.Id).ToList();
+    internal static List<ushort> ServerListRaidersIds = new List<ushort>();
 
     private void OnDestroy()
     {
@@ -495,6 +572,7 @@ public class Player
 
         if (!player.SetStatus(status))
         {
+            // Couldn't update Player status, send a message back to the Client to tell him
             Message answer = Message.Create(MessageSendMode.Reliable, MessageId.PlayerStatus);
             answer.AddUShort(fromClientId);
             answer.AddUShort((ushort)oldStatus);
@@ -502,42 +580,6 @@ public class Player
             NetworkManager.Singleton.Server.Send(answer, fromClientId);
             Debug.LogError($"Coudln't change Player {player.Id} ({player.username}) status from {oldStatus} to {status}");
             return;
-        }
-
-        // TODO: depending on the status change, tell all clients about it, for instance if (status is InGame or JoiningRaid) ie if player is raider, or if player leaves Raid
-        if(status == Status.JoiningRaid || status == Status.InGame || status == Status.LeavingRaid)
-        {
-            Message raidersMessage = null;
-            if (status == Status.JoiningRaid)
-            {
-                raidersMessage = Message.Create(MessageSendMode.Reliable, MessageId.NewRaider);
-                raidersMessage.AddUShort(fromClientId);
-                raidersMessage.AddString(player.username);
-                raidersMessage.AddUShort((ushort)status);
-                // TODO: when storage system is finished, also send equipment so it can be displayed
-            }
-            else // InGame or LeavingRaid
-            {
-                // Only send status update, the rest will be automatically handled on the client side
-                raidersMessage = Message.Create(MessageSendMode.Reliable, MessageId.PlayerStatus);
-                raidersMessage.AddUShort(fromClientId);
-                raidersMessage.AddUShort((ushort)status);
-            }
-
-            // Send message to all the Raiders, including the one having his status updated
-            foreach (Player raider in ServerListRaiders)
-            {
-                NetworkManager.Singleton.Server.Send(raidersMessage, raider.Id);
-            }
-        }
-        else
-        {
-            // Otherwise tell only the Client that sent the message about the status update
-            Message answer = Message.Create(MessageSendMode.Reliable, MessageId.PlayerStatus);
-            answer.AddUShort(fromClientId);
-            answer.AddUShort((ushort)status);
-
-            NetworkManager.Singleton.Server.Send(answer, fromClientId);
         }
     }
 
@@ -563,52 +605,20 @@ public class Player
     }
 
     /// <summary>
-    /// Called on the server-side when receiving a NewRaider message from a client
-    /// </summary>
-    [MessageHandler((ushort)MessageId.NewRaider)]
-    private static void ServerNewRaider(ushort fromClientId, Message message)
-    {
-        // Read the Client's AccountId data from the message
-        ushort playerAccountId = message.GetUShort();
-
-        Player player = List[fromClientId];
-
-        // TODO: there must be some check to do here like is there a raid going on, has the raid server reach max player capacity, etc ...
-        // TODO: because right now Raid Join are always accepted
-
-        // TODO: Add Player to Raiders on the server side !!!
-        if (!player.SetStatus(Status.JoiningRaid))
-        {
-            // TODO: Send error message to client
-            Debug.LogError($"Couldn't allow player {player.Id} ({player.username}) to Join Raid");
-            return;
-        }
-
-        // Tell clients about the new Raider
-        Message answer = Message.Create(MessageSendMode.Reliable, MessageId.NewRaider);
-        answer.AddUShort(fromClientId);
-        answer.AddInt(ServerListRaiders.Count);
-        answer.AddString(player.username);
-        answer.AddUShort((ushort)player.status);
-
-        NetworkManager.Singleton.Server.SendToAll(answer);
-    }
-
-    /// <summary>
     /// Called on the client-side when receiving a NewRaider message from the server
+    /// <br/> This call is triggered when a player status was set to JoiningRaid and the messages contains the PlayerCharacter data of this player
     /// </summary>
     [MessageHandler((ushort)MessageId.NewRaider)]
     private static void ClientNewRaider(Message message)
     {
         // Read the PlayerCharacter data from the message
         ushort playerId = message.GetUShort();
-        int raidersCount = message.GetInt();
 
         // Check if the status change affects the current Client
         if (playerId == NetworkManager.Singleton.Client.Id)
         {
             // The PlayerCharacter will be Instantiated in the JoinRaidGranted() call and it doesn't need to be added to ClientListRaiders
-            localPlayer.JoinRaidGranted(raidersCount);
+            localPlayer.JoinRaidGranted();
             return;
         }
 
@@ -619,6 +629,42 @@ public class Player
 
         // Add the PlayerCharacter to Raiders list
         ClientListRaiders.Add(playerCharacter);
+    }
+
+    /// <summary>
+    /// Called when a client sends his known raiders ids list to the server
+    /// </summary>
+    /// <param name="fromClientId"></param>
+    /// <param name="message"></param>
+    [MessageHandler((ushort)MessageId.SyncRaider)]
+    private static void ServerSyncRaider(ushort fromClientId, Message message)
+    {
+        List<ushort> ClientRaidersIds = message.GetUShorts().ToList();
+        List<ushort> ServerRaidersIds = ServerListRaiders.Select(player => player.Id).ToList();
+        List<ushort> missingIds = ServerRaidersIds.Except(ClientRaidersIds).ToList();
+
+        if (missingIds.Count > 0)
+        {
+            // Send NewRaider message back to the client foreach player Id in ServerRaidersIds that aren't in ClientRaidersIds
+            foreach (ushort id in missingIds)
+            {
+                NetworkManager.Singleton.Server.Send(List[id].RaiderMessage, fromClientId);
+            }
+        }
+
+        // Send ServerRaidersIds to Client
+        Message answer = Message.Create(MessageSendMode.Reliable, MessageId.SyncRaider);
+        answer.AddUShorts(ServerRaidersIds.ToArray());
+        NetworkManager.Singleton.Server.Send(answer, fromClientId);
+    }
+
+    /// <summary>
+    /// Called when the server sends the raiders Ids list to the client
+    /// </summary>
+    [MessageHandler((ushort)MessageId.SyncRaider)]
+    private static void ClientSyncRaider(Message message)
+    {
+        ServerListRaidersIds = message.GetUShorts().ToList();
     }
     #endregion
 }

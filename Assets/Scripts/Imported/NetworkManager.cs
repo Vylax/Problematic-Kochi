@@ -13,7 +13,8 @@ internal enum MessageId : ushort
     PlayerMovement,
     PlayerRegister,
     PlayerStatus,
-    SpawnPlayer //TODO REMOVE IT!!!
+    SyncRaider,
+    SpawnPlayer // TODO REMOVE IT!!!
 }
 
 public class NetworkManager : MonoBehaviour
@@ -106,7 +107,7 @@ public class NetworkManager : MonoBehaviour
     {
         if (Player.localPlayer.isRegistered && GUILayout.Button($"SetStatus({buttonStatus.ToString()})"))
         {
-            Player.localPlayer.SetStatus(buttonStatus, true);
+            Player.localPlayer.ClientAskSetStatus(buttonStatus);
         }
 
         Dictionary<ushort, OldPlayer> players = OldPlayer.List;
@@ -192,5 +193,10 @@ public class NetworkManager : MonoBehaviour
             Destroy(player.gameObject);
 
         UIManager.Singleton.BackToMain();
+    }
+
+    public GameObject Spawn(ushort Id)
+    {
+        return Instantiate((Id == Singleton.Client.Id ? LocalPlayerPrefab : PlayerPrefab), )
     }
 }

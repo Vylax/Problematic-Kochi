@@ -181,6 +181,8 @@ public class Player
                 // Prepare the message to send to other raiders
                 Message raidersMessage = RaiderMessage;
 
+                Debug.LogError($"mmmh {ServerListRaiders.Count}");
+
                 foreach (Player raider in ServerListRaiders)
                 {
                     // Send to ALL the Raiders the RaiderMessage of the new raider (ALL includes the new raider)
@@ -188,7 +190,7 @@ public class Player
 
                     // Send to the new raider the RaiderMessage of all raiders except for himself
                     if (raider.Id != Id)
-                        NetworkManager.Singleton.Server.Send(raider.RaiderMessage, raider.Id);
+                        NetworkManager.Singleton.Server.Send(raider.RaiderMessage, Id);
                 }
             }
             else
@@ -439,7 +441,6 @@ public class Player
         }
         else
         {
-            Debug.Log($"Player {playerId} is moved by Player {localPlayer.Id}");
             ClientListRaiders[playerId].Move(position, direction);
         }
     }

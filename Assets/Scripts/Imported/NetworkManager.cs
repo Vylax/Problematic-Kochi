@@ -48,9 +48,6 @@ public class NetworkManager : MonoBehaviour
 
     public bool isHosting => Server.IsRunning;
 
-    // DEBUG
-    public Player.Status buttonStatus;
-
     private void Awake()
     {
         Singleton = this;
@@ -104,12 +101,22 @@ public class NetworkManager : MonoBehaviour
     //DEBUG:
     private void OnGUI()
     {
-        if (Player.localPlayer != null && Player.localPlayer.isRegistered && GUILayout.Button($"SetStatus({buttonStatus.ToString()})"))
+        foreach(Player.Status status in Enum.GetValues(typeof(Player.Status)))
         {
-            Player.localPlayer.ClientAskSetStatus(buttonStatus);
+            if (Player.localPlayer != null && Player.localPlayer.isRegistered && GUILayout.Button($"SetStatus({status})"))
+            {
+                Player.localPlayer.ClientAskSetStatus(status);
+            }
+        }
+
+        if (Player.localPlayer != null && Player.localPlayer.isRegistered && GUILayout.Button($"Ready? {UIManager.Singleton.playerIsReadyToJoinRaid}"))
+        {
+            UIManager.Singleton.playerIsReadyToJoinRaid = !UIManager.Singleton.playerIsReadyToJoinRaid;
         }
 
         GUILayout.Box($"isHosting={isHosting}");
+        if(Player.localPlayer != null)
+            GUILayout.Box($"Local Player Status={Player.localPlayer.status}");
 
         Dictionary<ushort, Player> players = Player.List;
         Dictionary<ushort, PlayerCharacter> playersChar = Player.ClientListRaiders;
@@ -117,14 +124,14 @@ public class NetworkManager : MonoBehaviour
         {
             foreach (Player player in players.Values)
             {
-                GUILayout.Box($"Id:{player.Id}, Name:{player.username}, Status:{player.status.ToString()}");
+                GUILayout.Box($"Id:{player.Id}, Name:{player.username}, Status:{player.status}");
             }
         }
         else
         {
             foreach (PlayerCharacter player in playersChar.Values)
             {
-                GUILayout.Box($"Id:{player.Id}, Name:{player.username}, Status:{player.status.ToString()}");
+                GUILayout.Box($"Id:{player.Id}, Name:{player.username}, Status:{player.status}");
             }
         }
     }
@@ -211,6 +218,9 @@ public class NetworkManager : MonoBehaviour
 
     public GameObject Spawn(ushort Id)
     {
-        return Instantiate((Id == Singleton.Client.Id ? LocalPlayerPrefab : PlayerPrefab), Vector3.zero, Quaternion.identity);
+        GameObject prefab = !isHosting && Client.Id != Id ? PlayerPrefab : LocalPlayerPrefab;
+        GameObject spawnedCharacter = Instantiate(prefab, Vector3.up, Quaternion.identity);
+        spawnedCharacter.GetComponent<PlayerController>().playerId = Id;
+        return spawnedCharacter;
     }
 }

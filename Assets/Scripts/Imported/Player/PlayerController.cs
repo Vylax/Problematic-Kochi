@@ -12,6 +12,7 @@ public class PlayerController : MonoBehaviour
 
     private bool[] inputs;
     private float yVelocity;
+    public ushort playerId;
 
     private void OnValidate()
     {
@@ -22,7 +23,12 @@ public class PlayerController : MonoBehaviour
     private void Start()
     {
         if (player == null)
-            player = Player.localPlayer.character;
+        {
+            if (!NetworkManager.Singleton.isHosting)
+                player = Player.localPlayer.character;
+            else
+                player = Player.List[playerId].character;
+        }
 
         gravity *= Time.fixedDeltaTime * Time.fixedDeltaTime;
         moveSpeed *= Time.fixedDeltaTime;
@@ -33,14 +39,17 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        if (NetworkManager.Singleton.isHosting)
+            return;
+
         // Sample inputs every frame and store them until they're sent. This ensures no inputs are missed because they happened between FixedUpdate calls
-        if (Input.GetKey(KeyCode.W))
+        if (Input.GetKey(KeyCode.Z))
             inputs[0] = true;
 
         if (Input.GetKey(KeyCode.S))
             inputs[1] = true;
 
-        if (Input.GetKey(KeyCode.A))
+        if (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.LeftArrow))
             inputs[2] = true;
 
         if (Input.GetKey(KeyCode.D))
@@ -52,6 +61,9 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (NetworkManager.Singleton.isHosting)
+            return;
+
         Vector2 inputDirection = Vector2.zero;
         if (inputs[0])
             inputDirection.y += 1;
@@ -65,13 +77,13 @@ public class PlayerController : MonoBehaviour
         if (inputs[3])
             inputDirection.x += 1;
 
-        Move(inputDirection);
+        SendInputs(inputDirection);
 
         for (int i = 0; i < inputs.Length; i++)
             inputs[i] = false;
     }
 
-    private void Move(Vector2 inputDirection)
+    public void Move(Vector2 inputDirection)
     {
         Vector3 moveDirection = transform.right * inputDirection.x + transform.forward * inputDirection.y;
         moveDirection *= moveSpeed;
@@ -97,6 +109,18 @@ public class PlayerController : MonoBehaviour
         message.AddUShort(player.Id);
         message.AddVector3(transform.position);
         message.AddVector3(transform.forward);
+        
+        foreach(Player raider in Player.ServerListRaiders)
+        {
+            NetworkManager.Singleton.Server.Send(message, raider.Id);
+        }
+    }
+
+    private void SendInputs(Vector2 inputDirection)
+    {
+        Message message = Message.Create(MessageSendMode.Unreliable, MessageId.PlayerMovement);
+        message.AddVector2(inputDirection);
+
         NetworkManager.Singleton.Client.Send(message);
     }
     #endregion

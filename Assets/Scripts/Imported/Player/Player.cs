@@ -61,10 +61,9 @@ public class PlayerCharacter
     }
 
     /// <summary>
-    /// Called on the Client side when receiving a message from the server to Update PlayerCharacter transform after processing the inputs sent by the client to the server<br/>
-    /// Called on the Server side to Update PlayerCharacter transform after processing the inputs sent by the client to the server
+    /// (CLIENT ONLY) Called when receiving a message from the server to Update PlayerCharacter transform<br/>
     /// </summary>
-    private void Move(Vector3 newPosition, Vector3 forward)
+    public void Move(Vector3 newPosition, Vector3 forward)
     {
         transform.position = newPosition;
         forward.y = 0;
@@ -174,9 +173,10 @@ public class Player
         status = newStatus;
         Debug.Log($"Player {Id} ({username}) changed status: {oldStatus} --> {newStatus}");
 
-        // The message sending part applies only to the server
         if (NetworkManager.Singleton.isHosting)
         {
+            // This applies only to the Server
+
             if (status == Status.JoiningRaid)
             {
                 // Prepare the message to send to other raiders
@@ -218,11 +218,12 @@ public class Player
                 // TODO: update current scene index
                 break;
             case Status.JoiningRaid:
-                JoinRaidGranted();
-                break;
+                JoinRaidGranted(NetworkManager.Singleton.isHosting);
+                // Note: the character status update is done in the above call
+                return true;
         }
 
-        if(character == null)
+        if (character == null)
         {
             // This shouldn't happen if the procedure is working correctly
             if (IsRaider)
@@ -336,13 +337,19 @@ public class Player
     /// Called on the client-side when the Player is allowed to Join the Raid
     /// </summary>
     /// <param name="raidersCount">The number of raider there was before the Raid Join was granted</param>
-    public void JoinRaidGranted()
+    public void JoinRaidGranted(bool isHosting=false)
     {
         // Initialize PlayerCharacter instance
         character = new PlayerCharacter(this);
 
-        // Start a Coroutine that collects all raiders info are collected
-        NetworkManager.Singleton.StartCoroutine(SyncRaidersWithServer());
+        // Update the associated PlayerCharacter status
+        character.SetStatus(Status.JoiningRaid);
+
+        if (!isHosting)
+        {
+            // Start a Coroutine that collects all raiders info are collected
+            NetworkManager.Singleton.StartCoroutine(SyncRaidersWithServer());
+        }
     }
 
     private bool receivedServerList = false;
@@ -414,23 +421,32 @@ public class Player
     [MessageHandler((ushort)MessageId.PlayerMovement)]
     private static void PlayerMovement(Message message)
     {
-        Move(message);
+        ushort playerId = message.GetUShort();
+        Vector3 position = message.GetVector3();
+        Vector3 direction = message.GetVector3();
+
+        if(playerId == NetworkManager.Singleton.Client.Id)
+        {
+            localPlayer.character.Move(position, direction);
+        }
+        else
+        {
+            ClientListRaiders[playerId].Move(position, direction);
+        }
+
+        Debug.Log($"Movement received from Server for Player {playerId}");
     }
 
     [MessageHandler((ushort)MessageId.PlayerMovement)]
     private static void ServerPlayerMovement(ushort fromClientId, Message message)
     {
-        // Relay the message to all clients except the newly connected client
-        NetworkManager.Singleton.Server.SendToAll(message, fromClientId);
+        Debug.Log($"Inputs received from Player {fromClientId}");
 
-        Move(message);
-    }
+        // Read the inputs data from the message
+        Vector2 inputDirection = message.GetVector2();
 
-    public static void Move(Message message)
-    {
-        /*ushort playerId = message.GetUShort();
-        if (List.TryGetValue(playerId, out Player player))
-            player.Move(message.GetVector3(), message.GetVector3());*/
+        // Apply the inputs, compute transformation and send message to all raiders
+        List[fromClientId].character.gameObject.GetComponent<PlayerController>().Move(inputDirection);
     }
 
     /// <summary>
@@ -480,7 +496,6 @@ public class Player
     [MessageHandler((ushort)MessageId.PlayerRegister)]
     private static void ClientPlayerRegister(Message message)
     {
-        // TODO
         ushort playerAccountId = message.GetUShort();
         // TODO: implement storage serialization or whatever and then implement a way to pass Storage through messages in order to receive playerInventory and playerStash
         localPlayer.RegisterGranted(playerAccountId);

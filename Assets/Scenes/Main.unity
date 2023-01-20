@@ -1297,6 +1297,7 @@ MonoBehaviour:
   gameMenu: {fileID: 1682389167}
   usernameField: {fileID: 237431511}
   hostIPField: {fileID: 1124524249}
+  playerIsReadyToJoinRaid: 0
 --- !u!1 &1601676746
 GameObject:
   m_ObjectHideFlags: 0

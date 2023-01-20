@@ -2,7 +2,7 @@
 
 public class CameraController : MonoBehaviour
 {
-    [SerializeField] private PlayerCharacter player;
+    private Transform player;
     [SerializeField] private float sensitivity = 100f;
     [SerializeField] private float clampAngle = 85f;
 
@@ -11,12 +11,26 @@ public class CameraController : MonoBehaviour
 
     private void Start()
     {
+        if (NetworkManager.Singleton.isHosting)
+        {
+            gameObject.SetActive(false);
+            return;
+        }
+
+        Camera.main.gameObject.SetActive(false);
+
+        ToggleCursorMode();
+
+        player = transform.parent;
         verticalRotation = transform.localEulerAngles.x;
-        horizontalRotation = player.transform.eulerAngles.y;
+        horizontalRotation = player.eulerAngles.y;
     }
 
     private void Update()
     {
+        if (NetworkManager.Singleton.isHosting)
+            return;
+
         if (Input.GetKeyDown(KeyCode.Escape))
             ToggleCursorMode();
 
@@ -37,7 +51,7 @@ public class CameraController : MonoBehaviour
         verticalRotation = Mathf.Clamp(verticalRotation, -clampAngle, clampAngle);
 
         transform.localRotation = Quaternion.Euler(verticalRotation, 0f, 0f);
-        player.transform.rotation = Quaternion.Euler(0f, horizontalRotation, 0f);
+        player.rotation = Quaternion.Euler(0f, horizontalRotation, 0f);
     }
 
     private void ToggleCursorMode()

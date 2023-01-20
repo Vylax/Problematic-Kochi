@@ -5,6 +5,7 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     private PlayerCharacter player;
+    private Camera playerCam;
     [SerializeField] private CharacterController controller;
     [SerializeField] private float gravity;
     [SerializeField] private float moveSpeed;
@@ -29,6 +30,9 @@ public class PlayerController : MonoBehaviour
             else
                 player = Player.List[playerId].character;
         }
+
+        // Doing it this way allows us to make sure we don't select the weapon cam when we add one to avoid clipping
+        playerCam = GetComponentInChildren<CameraController>().gameObject.GetComponent<Camera>();
 
         gravity *= Time.fixedDeltaTime * Time.fixedDeltaTime;
         moveSpeed *= Time.fixedDeltaTime;
@@ -66,10 +70,10 @@ public class PlayerController : MonoBehaviour
 
         Vector3 inputDirection = Vector3.zero;
         if (inputs[0])
-            inputDirection.y += 1;
+            inputDirection.z += 1;
 
         if (inputs[1])
-            inputDirection.y -= 1;
+            inputDirection.z -= 1;
 
         if (inputs[2])
             inputDirection.x -= 1;
@@ -77,24 +81,36 @@ public class PlayerController : MonoBehaviour
         if (inputs[3])
             inputDirection.x += 1;
 
-        if (inputs[4])
-            inputDirection.z = 1;
-
-        SendInputs(inputDirection);
+        inputDirection = transform.TransformDirection(inputDirection);
+        //inputDirection = transform.right * inputDirection.x + transform.forward * inputDirection.y + Vector3.forward * inputDirection.z;
+        SendInputs(inputDirection, inputs[4], Rotation);
 
         for (int i = 0; i < inputs.Length; i++)
             inputs[i] = false;
     }
 
-    public void Move(Vector3 inputDirection)
+    private Vector2 Rotation => new Vector2(playerCam.transform.localEulerAngles.x, player.transform.localEulerAngles.y);
+
+    public void Move(Vector3 inputDirection, bool jump, Vector2 rotation)
     {
-        Vector3 moveDirection = transform.right * inputDirection.x + transform.forward * inputDirection.y;
+        // Update player body direction
+        Vector3 newRotation = transform.localEulerAngles;
+        newRotation.y = rotation.y;
+        transform.localEulerAngles = newRotation;
+
+        // Update player camera direction
+        newRotation = playerCam.transform.localEulerAngles;
+        newRotation.x = rotation.x;
+        playerCam.transform.localEulerAngles = newRotation;
+
+        // Update player movement
+        Vector3 moveDirection = inputDirection;
         moveDirection *= moveSpeed;
 
         if (controller.isGrounded)
         {
             yVelocity = 0f;
-            if (inputDirection.z > 0)
+            if (jump)
                 yVelocity = jumpSpeed;
         }
         yVelocity += gravity;
@@ -119,10 +135,12 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void SendInputs(Vector3 inputDirection)
+    private void SendInputs(Vector3 inputDirection, bool jump, Vector2 rotation)
     {
         Message message = Message.Create(MessageSendMode.Unreliable, MessageId.PlayerMovement);
         message.AddVector3(inputDirection);
+        message.AddBool(jump);
+        message.AddVector2(rotation);
 
         NetworkManager.Singleton.Client.Send(message);
     }

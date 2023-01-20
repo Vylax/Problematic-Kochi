@@ -60,13 +60,21 @@ public class PlayerCharacter
     }
 
     /// <summary>
-    /// (CLIENT ONLY) Called when receiving a message from the server to Update PlayerCharacter transform<br/>
+    /// (CLIENT ONLY) Called when receiving a message from the server to Update another client's PlayerCharacter transform<br/>
     /// </summary>
     public void Move(Vector3 newPosition, Vector3 forward)
     {
         transform.position = newPosition;
         forward.y = 0;
         transform.forward = forward.normalized;
+    }
+
+    /// <summary>
+    /// (CLIENT ONLY) Called when receiving a message from the server to Update the local client PlayerCharacter transform<br/>
+    /// </summary>
+    public void Move(Vector3 newPosition)
+    {
+        transform.position = newPosition;
     }
 
     public void SetStatus(Player.Status newStatus)
@@ -423,7 +431,7 @@ public class Player
     /// Called when the client receive a movement message from the Server
     /// </summary>
     [MessageHandler((ushort)MessageId.PlayerMovement)]
-    private static void PlayerMovement(Message message)
+    private static void ClientPlayerMovement(Message message)
     {
         // If raider isn't in game yet, ignore the message
         if (localPlayer.status != Status.InGame)
@@ -437,7 +445,7 @@ public class Player
         // Move the appropriate PlayerCharacter
         if(playerId == NetworkManager.Singleton.Client.Id)
         {
-            localPlayer.character.Move(position, direction);
+            localPlayer.character.Move(position);
         }
         else
         {
@@ -453,9 +461,11 @@ public class Player
     {
         // Read the inputs data from the message
         Vector3 inputDirection = message.GetVector3();
+        bool jump = message.GetBool();
+        Vector3 rotation = message.GetVector2();
 
         // Apply the inputs, compute transformation and send message to all raiders
-        List[fromClientId].character.gameObject.GetComponent<PlayerController>().Move(inputDirection);
+        List[fromClientId].character.gameObject.GetComponent<PlayerController>().Move(inputDirection, jump, rotation);
     }
 
     /// <summary>

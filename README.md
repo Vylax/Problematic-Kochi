@@ -3,6 +3,8 @@
 Problematic Kochi is a multiplayer Top-Down shooter game I'm working on.
 
 ## Todo
+### Handle Player leaving raid !!!
+
 ### Messages
 - implement Message.AddStatus()
 - implement Message.AddStorage()

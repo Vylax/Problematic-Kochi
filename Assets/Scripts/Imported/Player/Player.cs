@@ -37,11 +37,10 @@ public class PlayerCharacter
     /// <summary>
     /// This constructor should only be called when a Player joins an ongoing raid that was already joined by other raiders, it creates PlayerCharacter instances that are not associated to localPlayer
     /// </summary>
-    public PlayerCharacter(ushort Id, string username, Player.Status status)
+    public PlayerCharacter(ushort Id, string username)
     {
         this.Id = Id;
         this.username = username;
-        this.status = status;
         alive = false; // alive will be set to true when the PlayerCharacter is Spawned
         gameObject = null;
     }
@@ -418,32 +417,41 @@ public class Player
 
     #region Messages
 
+    /// <summary>
+    /// Called when the client receive a movement message from the Server
+    /// </summary>
     [MessageHandler((ushort)MessageId.PlayerMovement)]
     private static void PlayerMovement(Message message)
     {
+        // If raider isn't in game yet, ignore the message
+        if (localPlayer.status != Status.InGame)
+            return;
+
+        // Read movement data from the message
         ushort playerId = message.GetUShort();
         Vector3 position = message.GetVector3();
         Vector3 direction = message.GetVector3();
 
+        // Move the appropriate PlayerCharacter
         if(playerId == NetworkManager.Singleton.Client.Id)
         {
             localPlayer.character.Move(position, direction);
         }
         else
         {
+            Debug.Log($"Player {playerId} is moved by Player {localPlayer.Id}");
             ClientListRaiders[playerId].Move(position, direction);
         }
-
-        Debug.Log($"Movement received from Server for Player {playerId}");
     }
 
+    /// <summary>
+    /// Called when the server receives a input message from a client
+    /// </summary>
     [MessageHandler((ushort)MessageId.PlayerMovement)]
     private static void ServerPlayerMovement(ushort fromClientId, Message message)
     {
-        Debug.Log($"Inputs received from Player {fromClientId}");
-
         // Read the inputs data from the message
-        Vector2 inputDirection = message.GetVector2();
+        Vector3 inputDirection = message.GetVector3();
 
         // Apply the inputs, compute transformation and send message to all raiders
         List[fromClientId].character.gameObject.GetComponent<PlayerController>().Move(inputDirection);
@@ -565,8 +573,13 @@ public class Player
             return;
         }
 
+        // Prevent duplicate values
+        if (ClientListRaiders.ContainsKey(playerId))
+            return;
+
         // The New Raider isn't the localPlayer, we need to instantiate it and add it to ClientListRaiders here
-        PlayerCharacter playerCharacter = new PlayerCharacter(playerId, playerUsername, playerStatus);
+        PlayerCharacter playerCharacter = new PlayerCharacter(playerId, playerUsername);
+        playerCharacter.SetStatus(playerStatus);
 
         // Add the PlayerCharacter to Raiders list
         ClientListRaiders.Add(playerId, playerCharacter);

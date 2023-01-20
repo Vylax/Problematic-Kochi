@@ -64,7 +64,7 @@ public class PlayerController : MonoBehaviour
         if (NetworkManager.Singleton.isHosting)
             return;
 
-        Vector2 inputDirection = Vector2.zero;
+        Vector3 inputDirection = Vector3.zero;
         if (inputs[0])
             inputDirection.y += 1;
 
@@ -77,13 +77,16 @@ public class PlayerController : MonoBehaviour
         if (inputs[3])
             inputDirection.x += 1;
 
+        if (inputs[4])
+            inputDirection.z = 1;
+
         SendInputs(inputDirection);
 
         for (int i = 0; i < inputs.Length; i++)
             inputs[i] = false;
     }
 
-    public void Move(Vector2 inputDirection)
+    public void Move(Vector3 inputDirection)
     {
         Vector3 moveDirection = transform.right * inputDirection.x + transform.forward * inputDirection.y;
         moveDirection *= moveSpeed;
@@ -91,7 +94,7 @@ public class PlayerController : MonoBehaviour
         if (controller.isGrounded)
         {
             yVelocity = 0f;
-            if (inputs[4])
+            if (inputDirection.z > 0)
                 yVelocity = jumpSpeed;
         }
         yVelocity += gravity;
@@ -116,10 +119,10 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void SendInputs(Vector2 inputDirection)
+    private void SendInputs(Vector3 inputDirection)
     {
         Message message = Message.Create(MessageSendMode.Unreliable, MessageId.PlayerMovement);
-        message.AddVector2(inputDirection);
+        message.AddVector3(inputDirection);
 
         NetworkManager.Singleton.Client.Send(message);
     }

@@ -220,7 +220,10 @@ public class NetworkManager : MonoBehaviour
     {
         GameObject prefab = !isHosting && Client.Id != Id ? PlayerPrefab : LocalPlayerPrefab;
         GameObject spawnedCharacter = Instantiate(prefab, Vector3.up, Quaternion.identity);
-        spawnedCharacter.GetComponent<PlayerController>().playerId = Id;
+
+        // Set playerId if is server or local client
+        if(spawnedCharacter.GetComponent<PlayerController>())
+            spawnedCharacter.GetComponent<PlayerController>().playerId = Id;
         return spawnedCharacter;
     }
 }

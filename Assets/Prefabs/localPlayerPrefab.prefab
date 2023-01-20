@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 3173841543209099151}
   - component: {fileID: 8834881114548053435}
   - component: {fileID: 6129498082053858332}
-  - component: {fileID: 4217943218134235076}
   - component: {fileID: 3561329314630771019}
   - component: {fileID: 1144930302925183758}
   m_Layer: 0
@@ -86,18 +85,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &4217943218134235076
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4122832096695308899}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dd7129980c743444c9bae29ccb8016a7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!143 &3561329314630771019
 CharacterController:
   m_ObjectHideFlags: 0
@@ -128,7 +115,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 23155d7ba36a8a24185de79823556087, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 4217943218134235076}
   controller: {fileID: 3561329314630771019}
   gravity: -9.81
   moveSpeed: 5

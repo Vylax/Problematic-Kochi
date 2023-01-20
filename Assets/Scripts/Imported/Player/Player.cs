@@ -10,8 +10,8 @@ public class PlayerCharacter
 {
     // TODO: adjust the protection level of these attributes
     public ushort Id;
-    string username;
-    Player.Status status;
+    public string username;
+    public Player.Status status;
     bool alive;
     public GameObject gameObject;
 
@@ -163,6 +163,12 @@ public class Player
         Status oldStatus = status;
 
         // The conditioning should happen here
+        // TODO: check if status change is allowed, there should be more checks than the ones in place
+        if (status == newStatus || !isRegistered && (newStatus == Status.JoiningRaid || newStatus == Status.InGame || newStatus == Status.LeavingRaid))
+        {
+            Debug.LogError($"Coudln't change Player {Id} ({username}) status from {oldStatus} to {newStatus}");
+            return false;
+        }
 
         // Change status
         status = newStatus;
@@ -210,6 +216,9 @@ public class Player
         {
             case Status.Hideout:
                 // TODO: update current scene index
+                break;
+            case Status.JoiningRaid:
+                JoinRaidGranted();
                 break;
         }
 
@@ -332,16 +341,11 @@ public class Player
         // Initialize PlayerCharacter instance
         character = new PlayerCharacter(this);
 
-        // Set Status
-        if (!SetStatus(Status.JoiningRaid))
-        {
-            Debug.LogError("Server allowed player to join raid but player status cannot be set to JoiningRaid, this shouldn't happen");
-            return;
-        }
-
         // Start a Coroutine that collects all raiders info are collected
         NetworkManager.Singleton.StartCoroutine(SyncRaidersWithServer());
     }
+
+    private bool receivedServerList = false;
 
     // Send message to server with known raiders Ids
     // Server responds with all raiders Ids List, if some are missing, server sends NewRaider message for them
@@ -351,20 +355,20 @@ public class Player
     {
         Debug.Log($"Started collecting raiders from Server");
         ServerListRaidersIds = new List<ushort>();
+        receivedServerList = false;
 
-        SendClientListRaidersIdsToServer();
-
-        yield return new WaitForSeconds(3);
-        while (!ClientListRaidersIds.SequenceEqual(ServerListRaidersIds))
+        while (!receivedServerList || !ClientListRaidersIds.SequenceEqual(ServerListRaidersIds))
         {
-            // Send message to server with the current state of ClientListRaidersIds
+            // Send message to server with the current state of ClientListRaidersIds and wait for server response
             SendClientListRaidersIdsToServer();
+            yield return new WaitUntil(() => receivedServerList);
 
-            yield return new WaitForSeconds(10);
+            if (ClientListRaidersIds.SequenceEqual(ServerListRaidersIds))
+                break;
+            receivedServerList = false;
         }
 
         raiderSyncedWithServer = true;
-
         Debug.Log($"Successfully synced raider with Server");
     }
 
@@ -395,8 +399,8 @@ public class Player
     /// (CLIENT ONLY) Returns all the Raiders PlayerCharacter instances
     /// <br/> Note: This List doesn't contain localPlayer.character
     /// </summary>
-    internal static List<PlayerCharacter> ClientListRaiders = new List<PlayerCharacter>();
-    internal static List<ushort> ClientListRaidersIds => ClientListRaiders.Select(player => player.Id).ToList();
+    internal static Dictionary<ushort, PlayerCharacter> ClientListRaiders = new Dictionary<ushort, PlayerCharacter>();
+    internal static List<ushort> ClientListRaidersIds => ClientListRaiders.Values.Select(player => player.Id).ToList();
     internal static List<ushort> ServerListRaidersIds = new List<ushort>();
 
     private void OnDestroy()
@@ -535,22 +539,22 @@ public class Player
     {
         // Read the PlayerCharacter data from the message
         ushort playerId = message.GetUShort();
+        string playerUsername = message.GetString();
+        Status playerStatus = (Status)message.GetUShort(); // status is passed because if a client joins an ongoing raid, some players can have the InGame status but some can also have the JoiningRaid status
 
         // Check if the status change affects the current Client
         if (playerId == NetworkManager.Singleton.Client.Id)
         {
-            // The PlayerCharacter will be Instantiated in the JoinRaidGranted() call and it doesn't need to be added to ClientListRaiders
-            localPlayer.JoinRaidGranted();
+            // Update the localPlayer status, the rest will be handled in the SetStatus method
+            localPlayer.SetStatus(playerStatus);
             return;
         }
 
         // The New Raider isn't the localPlayer, we need to instantiate it and add it to ClientListRaiders here
-        string playerUsername = message.GetString();
-        Status playerStatus = (Status)message.GetUShort(); // status is passed because if a client joins an ongoing raid, some players can have the InGame status but some can also have the JoiningRaid status
         PlayerCharacter playerCharacter = new PlayerCharacter(playerId, playerUsername, playerStatus);
 
         // Add the PlayerCharacter to Raiders list
-        ClientListRaiders.Add(playerCharacter);
+        ClientListRaiders.Add(playerId, playerCharacter);
     }
 
     /// <summary>
@@ -561,6 +565,7 @@ public class Player
     {
         List<ushort> ClientRaidersIds = message.GetUShorts().ToList();
         List<ushort> ServerRaidersIds = ServerListRaiders.Select(player => player.Id).ToList();
+        ServerRaidersIds.Remove(fromClientId);
         List<ushort> missingIds = ServerRaidersIds.Except(ClientRaidersIds).ToList();
 
         if (missingIds.Count > 0)
@@ -585,6 +590,7 @@ public class Player
     private static void ClientSyncRaider(Message message)
     {
         ServerListRaidersIds = message.GetUShorts().ToList();
+        localPlayer.receivedServerList = true;
     }
     #endregion
 }

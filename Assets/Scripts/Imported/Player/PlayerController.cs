@@ -4,7 +4,7 @@ using UnityEngine;
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
-    [SerializeField] private PlayerCharacter player;
+    private PlayerCharacter player;
     [SerializeField] private CharacterController controller;
     [SerializeField] private float gravity;
     [SerializeField] private float moveSpeed;
@@ -17,13 +17,13 @@ public class PlayerController : MonoBehaviour
     {
         if (controller == null)
             controller = GetComponent<CharacterController>();
-
-        if (player == null)
-            player = Player.List[NetworkManager.Singleton.Client.Id].character;
     }
 
     private void Start()
     {
+        if (player == null)
+            player = Player.localPlayer.character;
+
         gravity *= Time.fixedDeltaTime * Time.fixedDeltaTime;
         moveSpeed *= Time.fixedDeltaTime;
         jumpSpeed *= Time.fixedDeltaTime;

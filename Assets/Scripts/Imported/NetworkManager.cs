@@ -109,10 +109,23 @@ public class NetworkManager : MonoBehaviour
             Player.localPlayer.ClientAskSetStatus(buttonStatus);
         }
 
+        GUILayout.Box($"isHosting={isHosting}");
+
         Dictionary<ushort, Player> players = Player.List;
-        foreach (Player player in players.Values)
+        Dictionary<ushort, PlayerCharacter> playersChar = Player.ClientListRaiders;
+        if (isHosting)
         {
-            GUILayout.Box($"{player.Id} {player.username}");
+            foreach (Player player in players.Values)
+            {
+                GUILayout.Box($"Id:{player.Id}, Name:{player.username}, Status:{player.status.ToString()}");
+            }
+        }
+        else
+        {
+            foreach (PlayerCharacter player in playersChar.Values)
+            {
+                GUILayout.Box($"Id:{player.Id}, Name:{player.username}, Status:{player.status.ToString()}");
+            }
         }
     }
 

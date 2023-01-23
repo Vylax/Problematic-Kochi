@@ -286,6 +286,18 @@ public class StorageSystem : MonoBehaviour
             return true;
         }
 
+        // TODO: Write thread for querying storage data from the storage server
+        /// <summary>
+        /// Coroutine method that execute and SQL procedure to retrive Storage structure data from the storage server
+        /// </summary>
+        /// <param name="accountId">Id of the player account who's account is queried</param>
+        /// <returns></returns>
+        internal IEnumerator QueryStorage(ushort accountId, StorageType type)
+        {
+            yield return null;
+        }
+
+
     }
 
     [Serializable]

@@ -4,6 +4,7 @@ Problematic Kochi is a multiplayer Top-Down shooter game I'm working on.
 
 ## Todo
 ### Handle Player leaving raid !!!
+#### Figure out an encoding format for the Storage structure so that it can be passed through SQL procdedures OR as file ?
 
 ### Messages
 - implement Message.AddStatus()

@@ -363,6 +363,7 @@ public class Player
 
     private bool receivedServerList = false;
 
+    // TODO: rmeove these comments and write summary
     // Send message to server with known raiders Ids
     // Server responds with all raiders Ids List, if some are missing, server sends NewRaider message for them
     // If all are received within 10 sec, sends known raiders Ids to server

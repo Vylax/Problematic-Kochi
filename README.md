@@ -4,6 +4,7 @@ Problematic Kochi is a multiplayer Top-Down shooter game I'm working on.
 
 ## Todo
 ### Handle Player leaving raid !!!
+### Add Movement and rotation interpolation
 
 ### Messages
 - implement Message.AddStatus()
@@ -18,9 +19,7 @@ Problematic Kochi is a multiplayer Top-Down shooter game I'm working on.
 	- In game (they are raiding, this state is reach as soon as the playercharacter is spawned)
 	- Leaving raid (they successfully extracted or died, make sure to make them immortal at this point and remove them from other raiders view (and drop body if they died), send them to Connected status when everything is good and display raid debrief)
 
-- Players characters should no longer be spawned on connection in the raid
 - Add a currentScene attribute (to know when changing status if the player is in the correct scene)
-- Players movement should be handled on the server-side: if a player moves forward, we send the input over to the server, the server computes the movement and sends the position back to all cleints
 - Clients data must be store in a SQL database, retrieve and store the data on server when the client is connected
 - Player alive attribute (relevant only if raiding: maybe make subclasses within the player class that are used according to the current player Status (RaidPlayer, DeadPlayer, HideoutPlayer, ...) ????)
 - Handle disconnections, so that the player character stays in game but if player reconnects he can resume

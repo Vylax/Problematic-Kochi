@@ -7,13 +7,11 @@ using UnityEngine;
 
 internal enum MessageId : ushort
 {
-    //SpawnPlayer = 1,
     NewRaider = 1,
     PlayerMovement,
     PlayerRegister,
     PlayerStatus,
     SyncRaider,
-    //SpawnPlayer // TODO REMOVE IT!!!
 }
 
 public class NetworkManager : MonoBehaviour
@@ -34,6 +32,7 @@ public class NetworkManager : MonoBehaviour
         }
     }
 
+    [Header("Server settings")]
     [SerializeField] private ushort port;
     [SerializeField] private ushort maxPlayers;
     [Header("Prefabs")]
@@ -46,18 +45,12 @@ public class NetworkManager : MonoBehaviour
     internal Server Server { get; private set; }
     internal Client Client { get; private set; }
 
+    // TODO: maybe use a fixed boolean set to true when StartHost() is called instead ?
     public bool isHosting => Server.IsRunning;
 
     private void Awake()
     {
         Singleton = this;
-
-#if UNITY_STANDALONE_LINUX
-            Debug.Log("Distant server detected");
-            
-            QualitySettings.vSyncCount = 0;
-            Application.targetFrameRate = 30;
-#endif
     }
 
     private void Start()
@@ -156,6 +149,11 @@ public class NetworkManager : MonoBehaviour
 
     internal void StartHost()
     {
+        Debug.Log("Distant server detected");
+
+        QualitySettings.vSyncCount = 0;
+        Application.targetFrameRate = 30;
+
         Server.Start(port, maxPlayers);
     }
 

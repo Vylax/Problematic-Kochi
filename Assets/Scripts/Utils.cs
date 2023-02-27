@@ -11,6 +11,13 @@ public class Utils : MonoBehaviour
         MainMenu = 0
     }
 
+    public enum StorageType
+    {
+        Stash = 0,
+        Inventory,
+        Container
+    }
+
     public static bool IsWithin(float a, float x, float b, bool inclusive = true)
     {
         return (a < x && x < b) || inclusive && (a == x || x == b); 

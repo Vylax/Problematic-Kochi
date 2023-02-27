@@ -41,7 +41,7 @@ public class PlayerCharacter
     {
         this.Id = Id;
         this.username = username;
-        alive = false; // alive will be set to true when the PlayerCharacter is Spawned
+        alive = false; // NOTE: alive will be set to true when the PlayerCharacter is Spawned
         gameObject = null;
     }
 
@@ -54,7 +54,6 @@ public class PlayerCharacter
     {
         // TODO
         alive = true;
-        // TODO: Instantiate prefab here
         gameObject = NetworkManager.Singleton.Spawn(Id);
         // TODO: When the storage implementation is complete, Display equipment here (the equipment should be passed by the NewRaider message along with the PlayerCharacter data
     }
